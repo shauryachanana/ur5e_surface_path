@@ -1,5 +1,5 @@
 # UR5e-Path-Planning-using-ROS2-Jazzy-and-Gazebo-Harmonic
-This repo, for now is able to spawn a UR5e with a cube in front of it using the launch file provided.
+This package, for now is able to spawn a UR5e with a cube in front of it using the launch file provided.
 Using the program, trace_cube in ur5e_surface_path node, the kinematic then traces the cube's surface which is closest to the robot.
 
 ## Prerequisites
