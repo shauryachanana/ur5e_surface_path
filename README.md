@@ -3,6 +3,7 @@ This package, for now is able to spawn a UR5e with a cube in front of it using t
 Using the program, trace_cube in ur5e_surface_path node, the kinematic then traces the cube's surface which is closest to the robot.
 
 ## Prerequisites
+- Before building, please create empty folders config/ meshes/ worlds/ rviz/
 - ROS2 Jazzy
 - Gazebo Harmonic
 - RViz2
