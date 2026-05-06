@@ -20,7 +20,7 @@ int main(int argc, char** argv){
 
     //set id from "Context" tab sed desired planning library (open motion plannin library)
     gripper_group_interface.setPlanningPipelineId("ompl");
-    //decides which motion algorythm to use
+    //decides which motion algorithm to use
     gripper_group_interface.setPlannerId("RRTConnectkConfigDefault");
 
     //~the longer thr better
