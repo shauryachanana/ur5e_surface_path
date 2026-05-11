@@ -72,16 +72,18 @@
 
     <link name="cube">
     <visual>
-        <geometry>
-        <box size="0.5 0.5 0.5"/>
-        </geometry>
-        <material name="red">
-        <color rgba="1 0 0 1"/>
-        </material>
+      <geometry>
+        <mesh filename="file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/tinkercadCube.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="red">
+      <color rgba="1 0 0 1"/>
+      </material>
     </visual>
     <collision>
         <geometry>
-        <box size="0.5 0.5 0.5"/>
+        <mesh filename="file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/tinkercadCube.stl"
+              scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
@@ -93,7 +95,7 @@
     <joint name="cube_joint" type="fixed">
     <parent link="world"/>
     <child link="cube"/>
-    <origin xyz="0.0 0.9 0.26" rpy="0 0 0"/>
+    <origin xyz="0.0 0.75 0.25" rpy="0 0 0"/>
     </joint>
 
   <gazebo reference="world">
