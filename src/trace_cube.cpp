@@ -267,27 +267,28 @@ int main(int argc, char** argv){
                 sameSideTriangles.push_back(vectorOfTriangles[i]);
         }
     }
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "same side: %zu", sameSideTriangles.size());
+    #endif
     /*----------------------------------------*/
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
     /*----------START THE OPERATION----------*/
 
-    for(unsigned int i = 0; i <= sameSideTriangles.size(); i++){
+    for(unsigned int i = 0; i < sameSideTriangles.size(); i++){
         // if((sameSideTriangles[i].centre_z * 0.001f) > 0.0001f){
             RCLCPP_WARN(logger, "start computation number %d", i);
             //multiply by 0.001f so they are "mm"
             target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
-            target_pose.position.y = 1.0f + sameSideTriangles[i].centre_y * 0.001f;
+            target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f;
             target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
 
             #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "same side: %zu", sameSideTriangles.size());
-            for(unsigned int j = 0; j < sameSideTriangles.size(); j++){
-                RCLCPP_WARN(logger, "x of %d : %2f", j, target_pose.position.x);
-                RCLCPP_WARN(logger, "y of %d : %2f", j, target_pose.position.y);
-                RCLCPP_WARN(logger, "z of %d : %2f", j, target_pose.position.z);
-            }
+            RCLCPP_WARN(logger, "x of %d : %2f", i, target_pose.position.x);
+            RCLCPP_WARN(logger, "y of %d : %2f", i, target_pose.position.y);
+            RCLCPP_WARN(logger, "z of %d : %2f", i, target_pose.position.z);
             #endif
 
             /*calculate the orientation (so its always perpendicular)*/
@@ -296,6 +297,8 @@ int main(int argc, char** argv){
             target_pose.orientation.y = 0.0;
             target_pose.orientation.z = 0.0;
             target_pose.orientation.w = 1 / sqrt(2);
+
+            /*THIS IS SUPPOSED TO RATATE THE TCP PERPENDICULARLY TO THE SURFACE*/
 
             // tf2::Vector3 normal(sameSideTriangles[i].normal_x, sameSideTriangles[i].normal_y, sameSideTriangles[i].normal_z);
             // //TCP should point TO the surface, while normals point OUT -> minus
@@ -319,6 +322,8 @@ int main(int argc, char** argv){
             //     target_pose.orientation.z = q.z();
             //     target_pose.orientation.w = q.w();
             // }
+
+            /*-----------------------------------------------------------------*/
 
             //add this pose to our vector
             target_poses.push_back(target_pose);
