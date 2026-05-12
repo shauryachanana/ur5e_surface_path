@@ -23,6 +23,7 @@ def launch_setup(context, *args, **kwargs):
         ),
         launch_arguments={
             "ur_type": ur_type,
+            "use_sim_time": "true",
             "safety_limits": safety_limits,
             "controllers_file": controllers_file,
             "description_file": description_file,

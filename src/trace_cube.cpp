@@ -3,14 +3,22 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 
-#include <fstream>    // reading files from disk
-#include <vector>     // dynamic list/array
+#include <fstream> // reading files from disk
+#include <vector>
 #include <math.h>
+#include <chrono> //for selay of 2s
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Vector3.h>
 #include <geometric_shapes/shapes.h> //defines what a mesh object is
 #include <geometric_shapes/mesh_operations.h> //loads .stl files
 #include <geometric_shapes/shape_operations.h> //mesh operations
+
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
+#define DEBUGGER
+#define FULLCLAUDE //didnt have time to look into it, please do
 
 struct Triangle{
     //corners
@@ -118,7 +126,7 @@ int main(int argc, char** argv){
 
     //use info from a cad file
     shapes::Mesh* mesh = shapes::createMeshFromResource(
-        "file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/tinkercadCube.stl"
+        "file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/50cmCube.stl"
     );
 
     //create a vector to store all the triangles
@@ -166,30 +174,75 @@ int main(int argc, char** argv){
         //add this triangle to our vector
         vectorOfTriangles.push_back(triangle);
     }
-
-    RCLCPP_WARN(logger, "total traing: %zu", vectorOfTriangles.size());
-
+    
+    #ifdef FULLCLAUDE
     //take a position of tcp
+    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+
+    rclcpp::sleep_for(std::chrono::seconds(1));
+
+    geometry_msgs::msg::TransformStamped transform;
+    try {
+        transform = tf_buffer->lookupTransform(
+            "base_link",
+            "tool0",
+            tf2::TimePointZero
+        );
+    } catch (tf2::TransformException& ex) {
+        RCLCPP_ERROR(logger, "TF failed: %s", ex.what());
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    double currentTCP[3] = {
+        transform.transform.translation.x,
+        transform.transform.translation.y,
+        transform.transform.translation.z
+    };
+
+    RCLCPP_WARN(logger, "TCP x: %f", currentTCP[0]);
+    RCLCPP_WARN(logger, "TCP y: %f", currentTCP[1]);
+    RCLCPP_WARN(logger, "TCP z: %f", currentTCP[2]);
+    #endif
+
+    #ifndef FULLCLAUDE
     geometry_msgs::msg::PoseStamped tcp_pose = gripper_group_interface.getCurrentPose();
     double currentTCP[3] = {tcp_pose.pose.position.x, tcp_pose.pose.position.y, tcp_pose.pose.position.z};
+    RCLCPP_WARN(logger, "TCP x: %2f", tcp_pose.pose.position.x);
+    RCLCPP_WARN(logger, "TCP y: %2f", tcp_pose.pose.position.y);
+    RCLCPP_WARN(logger, "TCP z: %2f", tcp_pose.pose.position.z);
+    #endif
 
-    //find closest triangle to  a tcp
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "x: %2f", vectorOfTriangles[0].centre_x);
+    RCLCPP_WARN(logger, "y: %2f", vectorOfTriangles[0].centre_y);
+    RCLCPP_WARN(logger, "z: %2f", vectorOfTriangles[0].centre_z);
+    #endif
+
+    //find closest triangle to a tcp
     int closestTriangle = -1;
-    float misDist = 10000;
+    float minDist = 100000;
     for(unsigned int i = 0; i < mesh->triangle_count; i++){
         float distanceToTriangle = sqrt(
-            pow(vectorOfTriangles[i].centre_x - currentTCP[0], 2) + 
-            pow(vectorOfTriangles[i].centre_y - currentTCP[1], 2) + 
-            pow(vectorOfTriangles[i].centre_z - currentTCP[2], 2)
+            pow((vectorOfTriangles[i].centre_x * 0.001f) - currentTCP[0], 2) + 
+            pow((vectorOfTriangles[i].centre_y * 0.001f) - currentTCP[1], 2) + 
+            pow((vectorOfTriangles[i].centre_z * 0.001f) - currentTCP[2], 2)
         );
-        if(distanceToTriangle < misDist){
-            misDist = distanceToTriangle;
+        if(distanceToTriangle < minDist){
+            minDist = distanceToTriangle;
             closestTriangle = i;
         }
     }
 
     //this is out closest triangle to a tcp:
     Triangle closest = vectorOfTriangles[closestTriangle];
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "closest triangle x: %2f", closest.centre_x);
+    RCLCPP_WARN(logger, "closest triangle y: %2f", closest.centre_y);
+    RCLCPP_WARN(logger, "closest triangle z: %2f", closest.centre_z);
+    #endif
 
     //now find all triangles with ~same orientation
     float normalOfClosestX = closest.normal_x;
@@ -214,23 +267,28 @@ int main(int argc, char** argv){
                 sameSideTriangles.push_back(vectorOfTriangles[i]);
         }
     }
-    RCLCPP_WARN(logger, "same side: %zu", sameSideTriangles.size());
     /*----------------------------------------*/
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
     /*----------START THE OPERATION----------*/
+
     for(unsigned int i = 0; i <= sameSideTriangles.size(); i++){
         // if((sameSideTriangles[i].centre_z * 0.001f) > 0.0001f){
             RCLCPP_WARN(logger, "start computation number %d", i);
             //multiply by 0.001f so they are "mm"
             target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
-            target_pose.position.y = 0.7f + sameSideTriangles[i].centre_y * 0.001f;
-            target_pose.position.z = 0.2f + sameSideTriangles[i].centre_z * 0.001f;
+            target_pose.position.y = 1.0f + sameSideTriangles[i].centre_y * 0.001f;
+            target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
 
-            RCLCPP_WARN(logger, "x %2f", target_pose.position.x);
-            RCLCPP_WARN(logger, "y %2f", target_pose.position.y);
-            RCLCPP_WARN(logger, "z %2f", target_pose.position.z);
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "same side: %zu", sameSideTriangles.size());
+            for(unsigned int j = 0; j < sameSideTriangles.size(); j++){
+                RCLCPP_WARN(logger, "x of %d : %2f", j, target_pose.position.x);
+                RCLCPP_WARN(logger, "y of %d : %2f", j, target_pose.position.y);
+                RCLCPP_WARN(logger, "z of %d : %2f", j, target_pose.position.z);
+            }
+            #endif
 
             /*calculate the orientation (so its always perpendicular)*/
 
@@ -270,7 +328,9 @@ int main(int argc, char** argv){
             //no movement
             double fraction = gripper_group_interface.computeCartesianPath(target_poses, 0.01, trajectory, true);
 
-            RCLCPP_WARN(logger, "Cartesian Path coverage: %.2f%%", fraction * 100.00);
+            #ifdef DEBUGGER
+                RCLCPP_WARN(logger, "Cartesian Path coverage: %.2f%%", fraction * 100.00);
+            #endif
 
             //Full Cartesian path achieved
             if (fraction >= 0.9) {
