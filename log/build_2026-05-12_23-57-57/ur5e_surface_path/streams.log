@@ -1,0 +1,82 @@
+[0.013s] Invoking command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/iku/ur5e_ws/src/ur5e_surface_path -DCMAKE_INSTALL_PREFIX=/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path
+[0.311s] -- The C compiler identification is GNU 13.3.0
+[0.464s] -- The CXX compiler identification is GNU 13.3.0
+[0.485s] -- Detecting C compiler ABI info
+[0.593s] -- Detecting C compiler ABI info - done
+[0.600s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.600s] -- Detecting C compile features
+[0.601s] -- Detecting C compile features - done
+[0.607s] -- Detecting CXX compiler ABI info
+[0.691s] -- Detecting CXX compiler ABI info - done
+[0.697s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.697s] -- Detecting CXX compile features
+[0.697s] -- Detecting CXX compile features - done
+[0.752s] -- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+[0.852s] -- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter 
+[0.989s] -- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+[1.066s] -- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+[1.081s] -- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+[1.104s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.127s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.205s] -- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+[1.208s] -- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+[1.296s] -- Found OpenSSL: /usr/lib/aarch64-linux-gnu/libcrypto.so (found version "3.0.13")  
+[1.312s] -- Found FastRTPS: /opt/ros/jazzy/include (Required is at least version "2.13") 
+[1.326s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.388s] -- Found std_msgs: 5.3.7 (/opt/ros/jazzy/share/std_msgs/cmake)
+[1.400s] -- Found trajectory_msgs: 5.3.7 (/opt/ros/jazzy/share/trajectory_msgs/cmake)
+[1.433s] -- Found moveit_ros_planning_interface: 2.12.4 (/opt/ros/jazzy/share/moveit_ros_planning_interface/cmake)
+[1.532s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: date_time filesystem program_options system thread 
+[1.797s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+[1.863s] -- Found parameter_traits: 0.7.1 (/opt/ros/jazzy/share/parameter_traits/cmake)
+[1.878s] -- Found rclcpp_lifecycle: 28.1.18 (/opt/ros/jazzy/share/rclcpp_lifecycle/cmake)
+[1.906s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: filesystem 
+[1.967s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[1.968s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[2.105s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread chrono 
+[2.142s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: thread system filesystem regex date_time program_options 
+[2.163s] -- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread 
+[2.305s] -- Configuring done (2.2s)
+[2.340s] -- Generating done (0.0s)
+[2.348s] -- Build files have been written to: /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path
+[2.366s] Invoked command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/iku/ur5e_ws/src/ur5e_surface_path -DCMAKE_INSTALL_PREFIX=/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path
+[2.372s] Invoking command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path -- -j4 -l4
+[2.415s] [ 25%] [32mBuilding CXX object CMakeFiles/trace_cube.dir/src/trace_cube.cpp.o[0m
+[2.415s] [ 50%] [32mBuilding CXX object CMakeFiles/hello_moveit.dir/src/hello_moveit.cpp.o[0m
+[19.610s] [ 75%] [32m[1mLinking CXX executable hello_moveit[0m
+[20.610s] [ 75%] Built target hello_moveit
+[22.617s] [100%] [32m[1mLinking CXX executable trace_cube[0m
+[22.956s] [100%] Built target trace_cube
+[22.974s] Invoked command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path -- -j4 -l4
+[22.984s] Invoking command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path
+[22.990s] -- Install configuration: ""
+[22.990s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/hello_moveit
+[22.991s] -- Set non-toolchain portion of runtime path of "/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/hello_moveit" to ""
+[22.991s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/trace_cube
+[22.992s] -- Set non-toolchain portion of runtime path of "/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/trace_cube" to ""
+[22.992s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/launch
+[22.992s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/launch/ur5e_cube_moveit.launch.py
+[22.993s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/urdf
+[22.993s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/urdf/ur5e_cube.urdf.xacro
+[22.993s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/config
+[22.993s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes/50cmCube.stl
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes/tinkercadCube.stl
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/worlds
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/rviz
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/package_run_dependencies/ur5e_surface_path
+[22.994s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/parent_prefix_path/ur5e_surface_path
+[22.995s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/ament_prefix_path.sh
+[22.995s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/ament_prefix_path.dsv
+[22.995s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/path.sh
+[22.996s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/path.dsv
+[22.996s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.bash
+[22.996s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.sh
+[22.997s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.zsh
+[22.997s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.dsv
+[22.997s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/package.dsv
+[22.997s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/packages/ur5e_surface_path
+[22.998s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/cmake/ur5e_surface_pathConfig.cmake
+[22.998s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/cmake/ur5e_surface_pathConfig-version.cmake
+[22.998s] -- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/package.xml
+[23.002s] Invoked command in '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path

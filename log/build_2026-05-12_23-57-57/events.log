@@ -1,0 +1,314 @@
+[0.000000] (-) TimerEvent: {}
+[0.000992] (ur5e_surface_path) JobQueued: {'identifier': 'ur5e_surface_path', 'dependencies': OrderedDict()}
+[0.001087] (ur5e_surface_path) JobStarted: {'identifier': 'ur5e_surface_path'}
+[0.011555] (ur5e_surface_path) JobProgress: {'identifier': 'ur5e_surface_path', 'progress': 'cmake'}
+[0.013611] (ur5e_surface_path) Command: {'cmd': ['/usr/bin/cmake', '/home/iku/ur5e_ws/src/ur5e_surface_path', '-DCMAKE_INSTALL_PREFIX=/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path'], 'cwd': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'env': OrderedDict({'LESSOPEN': '| /usr/bin/lesspipe %s', 'GZ_SIM_RESOURCE_PATH': '/opt/ros/jazzy/share', 'USER': 'iku', 'GZ_CONFIG_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/share/gz:/opt/ros/jazzy/opt/sdformat_vendor/share/gz:/opt/ros/jazzy/opt/gz_gui_vendor/share/gz:/opt/ros/jazzy/opt/gz_transport_vendor/share/gz:/opt/ros/jazzy/opt/gz_rendering_vendor/share/gz:/opt/ros/jazzy/opt/gz_plugin_vendor/share/gz:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/share/gz:/opt/ros/jazzy/opt/gz_msgs_vendor/share/gz:/opt/ros/jazzy/opt/gz_common_vendor/share/gz', 'XDG_SESSION_TYPE': 'wayland', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/lib:/opt/ros/jazzy/opt/gz_sensors_vendor/lib:/opt/ros/jazzy/opt/gz_physics_vendor/lib:/opt/ros/jazzy/opt/sdformat_vendor/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/aarch64-linux-gnu:/opt/ros/jazzy/opt/gz_gui_vendor/lib:/opt/ros/jazzy/opt/gz_transport_vendor/lib:/opt/ros/jazzy/opt/gz_rendering_vendor/lib:/opt/ros/jazzy/opt/gz_plugin_vendor/lib:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/lib:/opt/ros/jazzy/opt/gz_msgs_vendor/lib:/opt/ros/jazzy/opt/gz_common_vendor/lib:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_tools_vendor/lib:/opt/ros/jazzy/opt/gz_ogre_next_vendor/lib:/opt/ros/jazzy/opt/gz_dartsim_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib', 'HOME': '/home/iku', 'OLDPWD': '/home/iku/ur5e_ws', 'DESKTOP_SESSION': 'ubuntu', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SYSTEMD_EXEC_PID': '2048', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'GNOME_KEYRING_CONTROL': '/run/user/1000/keyring', '_colcon_cd_root': '/opt/ros/jazzy/', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'COLCON_PREFIX_PATH': '/home/iku/ur5e_ws/install', 'ROS_DISTRO': 'jazzy', 'LOGNAME': 'iku', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.SettingsDaemon.MediaKeys.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'iku', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'PATH': '/opt/ros/jazzy/opt/gz_msgs_vendor/bin:/opt/ros/jazzy/opt/gz_tools_vendor/bin:/opt/ros/jazzy/opt/gz_ogre_next_vendor/bin:/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/ikusrv:@/tmp/.ICE-unix/1886,unix/ikusrv:/tmp/.ICE-unix/1886', 'XDG_MENU_PREFIX': 'gnome-', 'GNOME_TERMINAL_SCREEN': '/org/gnome/Terminal/screen/f9d8da2c_fb8c_48e1_b173_16c5fd47758b', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.OWW7O3', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.crdownload=00;90:*.dpkg-dist=00;90:*.dpkg-new=00;90:*.dpkg-old=00;90:*.dpkg-tmp=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90:*.swp=00;90:*.tmp=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:', 'GNOME_TERMINAL_SERVICE': ':1.143', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy', 'SHELL': '/bin/bash', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/opt/ros/jazzy/lib/python3.12/site-packages', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'VTE_VERSION': '7600', 'CMAKE_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy/opt/gz_sim_vendor:/opt/ros/jazzy/opt/gz_sensors_vendor:/opt/ros/jazzy/opt/gz_physics_vendor:/opt/ros/jazzy/opt/sdformat_vendor:/opt/ros/jazzy/opt/gz_gui_vendor:/opt/ros/jazzy/opt/gz_transport_vendor:/opt/ros/jazzy/opt/gz_rendering_vendor:/opt/ros/jazzy/opt/gz_plugin_vendor:/opt/ros/jazzy/opt/gz_fuel_tools_vendor:/opt/ros/jazzy/opt/gz_msgs_vendor:/opt/ros/jazzy/opt/gz_common_vendor:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_tools_vendor:/opt/ros/jazzy/opt/gz_ogre_next_vendor:/opt/ros/jazzy/opt/gz_dartsim_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy'}), 'shell': False}
+[0.100008] (-) TimerEvent: {}
+[0.200282] (-) TimerEvent: {}
+[0.300548] (-) TimerEvent: {}
+[0.312374] (ur5e_surface_path) StdoutLine: {'line': b'-- The C compiler identification is GNU 13.3.0\n'}
+[0.400784] (-) TimerEvent: {}
+[0.464710] (ur5e_surface_path) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 13.3.0\n'}
+[0.485943] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[0.500863] (-) TimerEvent: {}
+[0.594494] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[0.600648] (ur5e_surface_path) StdoutLine: {'line': b'-- Check for working C compiler: /usr/bin/cc - skipped\n'}
+[0.601010] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[0.601123] (-) TimerEvent: {}
+[0.602014] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[0.607616] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[0.691539] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[0.697668] (ur5e_surface_path) StdoutLine: {'line': b'-- Check for working CXX compiler: /usr/bin/c++ - skipped\n'}
+[0.697853] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[0.698300] (ur5e_surface_path) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[0.701200] (-) TimerEvent: {}
+[0.753291] (ur5e_surface_path) StdoutLine: {'line': b'-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)\n'}
+[0.802791] (-) TimerEvent: {}
+[0.853212] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter \n'}
+[0.906946] (-) TimerEvent: {}
+[0.990418] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)\n'}
+[1.009736] (-) TimerEvent: {}
+[1.067291] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)\n'}
+[1.082130] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)\n'}
+[1.104790] (ur5e_surface_path) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[1.110335] (-) TimerEvent: {}
+[1.127788] (ur5e_surface_path) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[1.206264] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)\n'}
+[1.209529] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)\n'}
+[1.210409] (-) TimerEvent: {}
+[1.297394] (ur5e_surface_path) StdoutLine: {'line': b'-- Found OpenSSL: /usr/lib/aarch64-linux-gnu/libcrypto.so (found version "3.0.13")  \n'}
+[1.310489] (-) TimerEvent: {}
+[1.313517] (ur5e_surface_path) StdoutLine: {'line': b'-- Found FastRTPS: /opt/ros/jazzy/include (Required is at least version "2.13") \n'}
+[1.327323] (ur5e_surface_path) StdoutLine: {'line': b"-- Using RMW implementation 'rmw_fastrtps_cpp' as default\n"}
+[1.389334] (ur5e_surface_path) StdoutLine: {'line': b'-- Found std_msgs: 5.3.7 (/opt/ros/jazzy/share/std_msgs/cmake)\n'}
+[1.401019] (ur5e_surface_path) StdoutLine: {'line': b'-- Found trajectory_msgs: 5.3.7 (/opt/ros/jazzy/share/trajectory_msgs/cmake)\n'}
+[1.410580] (-) TimerEvent: {}
+[1.433631] (ur5e_surface_path) StdoutLine: {'line': b'-- Found moveit_ros_planning_interface: 2.12.4 (/opt/ros/jazzy/share/moveit_ros_planning_interface/cmake)\n'}
+[1.510751] (-) TimerEvent: {}
+[1.533399] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: date_time filesystem program_options system thread \n'}
+[1.611227] (-) TimerEvent: {}
+[1.713430] (-) TimerEvent: {}
+[1.798122] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread \n'}
+[1.815587] (-) TimerEvent: {}
+[1.863597] (ur5e_surface_path) StdoutLine: {'line': b'-- Found parameter_traits: 0.7.1 (/opt/ros/jazzy/share/parameter_traits/cmake)\n'}
+[1.879536] (ur5e_surface_path) StdoutLine: {'line': b'-- Found rclcpp_lifecycle: 28.1.18 (/opt/ros/jazzy/share/rclcpp_lifecycle/cmake)\n'}
+[1.906879] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: filesystem \n'}
+[1.917783] (-) TimerEvent: {}
+[1.968500] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Eigen3: TRUE (found version "3.4.0") \n'}
+[1.968606] (ur5e_surface_path) StdoutLine: {'line': b'-- Ensuring Eigen3 include directory is part of orocos-kdl CMake target\n'}
+[2.017871] (-) TimerEvent: {}
+[2.105706] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread chrono \n'}
+[2.118855] (-) TimerEvent: {}
+[2.142881] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: thread system filesystem regex date_time program_options \n'}
+[2.163747] (ur5e_surface_path) StdoutLine: {'line': b'-- Found Boost: /usr/lib/aarch64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread \n'}
+[2.218941] (-) TimerEvent: {}
+[2.306131] (ur5e_surface_path) StdoutLine: {'line': b'-- Configuring done (2.2s)\n'}
+[2.319020] (-) TimerEvent: {}
+[2.341508] (ur5e_surface_path) StdoutLine: {'line': b'-- Generating done (0.0s)\n'}
+[2.348736] (ur5e_surface_path) StdoutLine: {'line': b'-- Build files have been written to: /home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path\n'}
+[2.365701] (ur5e_surface_path) CommandEnded: {'returncode': 0}
+[2.372966] (ur5e_surface_path) JobProgress: {'identifier': 'ur5e_surface_path', 'progress': 'build'}
+[2.373003] (ur5e_surface_path) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', '--', '-j4', '-l4'], 'cwd': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'env': OrderedDict({'LESSOPEN': '| /usr/bin/lesspipe %s', 'GZ_SIM_RESOURCE_PATH': '/opt/ros/jazzy/share', 'USER': 'iku', 'GZ_CONFIG_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/share/gz:/opt/ros/jazzy/opt/sdformat_vendor/share/gz:/opt/ros/jazzy/opt/gz_gui_vendor/share/gz:/opt/ros/jazzy/opt/gz_transport_vendor/share/gz:/opt/ros/jazzy/opt/gz_rendering_vendor/share/gz:/opt/ros/jazzy/opt/gz_plugin_vendor/share/gz:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/share/gz:/opt/ros/jazzy/opt/gz_msgs_vendor/share/gz:/opt/ros/jazzy/opt/gz_common_vendor/share/gz', 'XDG_SESSION_TYPE': 'wayland', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/lib:/opt/ros/jazzy/opt/gz_sensors_vendor/lib:/opt/ros/jazzy/opt/gz_physics_vendor/lib:/opt/ros/jazzy/opt/sdformat_vendor/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/aarch64-linux-gnu:/opt/ros/jazzy/opt/gz_gui_vendor/lib:/opt/ros/jazzy/opt/gz_transport_vendor/lib:/opt/ros/jazzy/opt/gz_rendering_vendor/lib:/opt/ros/jazzy/opt/gz_plugin_vendor/lib:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/lib:/opt/ros/jazzy/opt/gz_msgs_vendor/lib:/opt/ros/jazzy/opt/gz_common_vendor/lib:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_tools_vendor/lib:/opt/ros/jazzy/opt/gz_ogre_next_vendor/lib:/opt/ros/jazzy/opt/gz_dartsim_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib', 'HOME': '/home/iku', 'OLDPWD': '/home/iku/ur5e_ws', 'DESKTOP_SESSION': 'ubuntu', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SYSTEMD_EXEC_PID': '2048', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'GNOME_KEYRING_CONTROL': '/run/user/1000/keyring', '_colcon_cd_root': '/opt/ros/jazzy/', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'COLCON_PREFIX_PATH': '/home/iku/ur5e_ws/install', 'ROS_DISTRO': 'jazzy', 'LOGNAME': 'iku', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.SettingsDaemon.MediaKeys.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'iku', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'PATH': '/opt/ros/jazzy/opt/gz_msgs_vendor/bin:/opt/ros/jazzy/opt/gz_tools_vendor/bin:/opt/ros/jazzy/opt/gz_ogre_next_vendor/bin:/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/ikusrv:@/tmp/.ICE-unix/1886,unix/ikusrv:/tmp/.ICE-unix/1886', 'XDG_MENU_PREFIX': 'gnome-', 'GNOME_TERMINAL_SCREEN': '/org/gnome/Terminal/screen/f9d8da2c_fb8c_48e1_b173_16c5fd47758b', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.OWW7O3', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.crdownload=00;90:*.dpkg-dist=00;90:*.dpkg-new=00;90:*.dpkg-old=00;90:*.dpkg-tmp=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90:*.swp=00;90:*.tmp=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:', 'GNOME_TERMINAL_SERVICE': ':1.143', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy', 'SHELL': '/bin/bash', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/opt/ros/jazzy/lib/python3.12/site-packages', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'VTE_VERSION': '7600', 'CMAKE_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy/opt/gz_sim_vendor:/opt/ros/jazzy/opt/gz_sensors_vendor:/opt/ros/jazzy/opt/gz_physics_vendor:/opt/ros/jazzy/opt/sdformat_vendor:/opt/ros/jazzy/opt/gz_gui_vendor:/opt/ros/jazzy/opt/gz_transport_vendor:/opt/ros/jazzy/opt/gz_rendering_vendor:/opt/ros/jazzy/opt/gz_plugin_vendor:/opt/ros/jazzy/opt/gz_fuel_tools_vendor:/opt/ros/jazzy/opt/gz_msgs_vendor:/opt/ros/jazzy/opt/gz_common_vendor:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_tools_vendor:/opt/ros/jazzy/opt/gz_ogre_next_vendor:/opt/ros/jazzy/opt/gz_dartsim_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy'}), 'shell': False}
+[2.415338] (ur5e_surface_path) StdoutLine: {'line': b'[ 25%] \x1b[32mBuilding CXX object CMakeFiles/trace_cube.dir/src/trace_cube.cpp.o\x1b[0m\n'}
+[2.416263] (ur5e_surface_path) StdoutLine: {'line': b'[ 50%] \x1b[32mBuilding CXX object CMakeFiles/hello_moveit.dir/src/hello_moveit.cpp.o\x1b[0m\n'}
+[2.419100] (-) TimerEvent: {}
+[2.522373] (-) TimerEvent: {}
+[2.622643] (-) TimerEvent: {}
+[2.722945] (-) TimerEvent: {}
+[2.827245] (-) TimerEvent: {}
+[2.928938] (-) TimerEvent: {}
+[3.029578] (-) TimerEvent: {}
+[3.129832] (-) TimerEvent: {}
+[3.230771] (-) TimerEvent: {}
+[3.330998] (-) TimerEvent: {}
+[3.431280] (-) TimerEvent: {}
+[3.532206] (-) TimerEvent: {}
+[3.635706] (-) TimerEvent: {}
+[3.738732] (-) TimerEvent: {}
+[3.840838] (-) TimerEvent: {}
+[3.941724] (-) TimerEvent: {}
+[4.042169] (-) TimerEvent: {}
+[4.146593] (-) TimerEvent: {}
+[4.251254] (-) TimerEvent: {}
+[4.356004] (-) TimerEvent: {}
+[4.456946] (-) TimerEvent: {}
+[4.557457] (-) TimerEvent: {}
+[4.657987] (-) TimerEvent: {}
+[4.758674] (-) TimerEvent: {}
+[4.858951] (-) TimerEvent: {}
+[4.961468] (-) TimerEvent: {}
+[5.062776] (-) TimerEvent: {}
+[5.164795] (-) TimerEvent: {}
+[5.266769] (-) TimerEvent: {}
+[5.370001] (-) TimerEvent: {}
+[5.474008] (-) TimerEvent: {}
+[5.577258] (-) TimerEvent: {}
+[5.683226] (-) TimerEvent: {}
+[5.789684] (-) TimerEvent: {}
+[5.892285] (-) TimerEvent: {}
+[5.995462] (-) TimerEvent: {}
+[6.100549] (-) TimerEvent: {}
+[6.200894] (-) TimerEvent: {}
+[6.302749] (-) TimerEvent: {}
+[6.403347] (-) TimerEvent: {}
+[6.507438] (-) TimerEvent: {}
+[6.608905] (-) TimerEvent: {}
+[6.709526] (-) TimerEvent: {}
+[6.809941] (-) TimerEvent: {}
+[6.912039] (-) TimerEvent: {}
+[7.012767] (-) TimerEvent: {}
+[7.116107] (-) TimerEvent: {}
+[7.216776] (-) TimerEvent: {}
+[7.317769] (-) TimerEvent: {}
+[7.418596] (-) TimerEvent: {}
+[7.524106] (-) TimerEvent: {}
+[7.625334] (-) TimerEvent: {}
+[7.726938] (-) TimerEvent: {}
+[7.827821] (-) TimerEvent: {}
+[7.930431] (-) TimerEvent: {}
+[8.033138] (-) TimerEvent: {}
+[8.136245] (-) TimerEvent: {}
+[8.239454] (-) TimerEvent: {}
+[8.340268] (-) TimerEvent: {}
+[8.443996] (-) TimerEvent: {}
+[8.546594] (-) TimerEvent: {}
+[8.649191] (-) TimerEvent: {}
+[8.749522] (-) TimerEvent: {}
+[8.851139] (-) TimerEvent: {}
+[8.951518] (-) TimerEvent: {}
+[9.054838] (-) TimerEvent: {}
+[9.155491] (-) TimerEvent: {}
+[9.260072] (-) TimerEvent: {}
+[9.360467] (-) TimerEvent: {}
+[9.461712] (-) TimerEvent: {}
+[9.562076] (-) TimerEvent: {}
+[9.686581] (-) TimerEvent: {}
+[9.799268] (-) TimerEvent: {}
+[9.900486] (-) TimerEvent: {}
+[10.003783] (-) TimerEvent: {}
+[10.105561] (-) TimerEvent: {}
+[10.208679] (-) TimerEvent: {}
+[10.314300] (-) TimerEvent: {}
+[10.419475] (-) TimerEvent: {}
+[10.527860] (-) TimerEvent: {}
+[10.633005] (-) TimerEvent: {}
+[10.738130] (-) TimerEvent: {}
+[10.839422] (-) TimerEvent: {}
+[10.944702] (-) TimerEvent: {}
+[11.046163] (-) TimerEvent: {}
+[11.150336] (-) TimerEvent: {}
+[11.253791] (-) TimerEvent: {}
+[11.354195] (-) TimerEvent: {}
+[11.458082] (-) TimerEvent: {}
+[11.560171] (-) TimerEvent: {}
+[11.661732] (-) TimerEvent: {}
+[11.764582] (-) TimerEvent: {}
+[11.865448] (-) TimerEvent: {}
+[11.968540] (-) TimerEvent: {}
+[12.068988] (-) TimerEvent: {}
+[12.173533] (-) TimerEvent: {}
+[12.275696] (-) TimerEvent: {}
+[12.378321] (-) TimerEvent: {}
+[12.482073] (-) TimerEvent: {}
+[12.583701] (-) TimerEvent: {}
+[12.685075] (-) TimerEvent: {}
+[12.785430] (-) TimerEvent: {}
+[12.885779] (-) TimerEvent: {}
+[12.989138] (-) TimerEvent: {}
+[13.089692] (-) TimerEvent: {}
+[13.190792] (-) TimerEvent: {}
+[13.297637] (-) TimerEvent: {}
+[13.401762] (-) TimerEvent: {}
+[13.502898] (-) TimerEvent: {}
+[13.603376] (-) TimerEvent: {}
+[13.704510] (-) TimerEvent: {}
+[13.808884] (-) TimerEvent: {}
+[13.909381] (-) TimerEvent: {}
+[14.012429] (-) TimerEvent: {}
+[14.113177] (-) TimerEvent: {}
+[14.227494] (-) TimerEvent: {}
+[14.329016] (-) TimerEvent: {}
+[14.429500] (-) TimerEvent: {}
+[14.532980] (-) TimerEvent: {}
+[14.633754] (-) TimerEvent: {}
+[14.736227] (-) TimerEvent: {}
+[14.838571] (-) TimerEvent: {}
+[14.943675] (-) TimerEvent: {}
+[15.044288] (-) TimerEvent: {}
+[15.148148] (-) TimerEvent: {}
+[15.253420] (-) TimerEvent: {}
+[15.354106] (-) TimerEvent: {}
+[15.459423] (-) TimerEvent: {}
+[15.560826] (-) TimerEvent: {}
+[15.661759] (-) TimerEvent: {}
+[15.763568] (-) TimerEvent: {}
+[15.864328] (-) TimerEvent: {}
+[15.965493] (-) TimerEvent: {}
+[16.070477] (-) TimerEvent: {}
+[16.174708] (-) TimerEvent: {}
+[16.275822] (-) TimerEvent: {}
+[16.378804] (-) TimerEvent: {}
+[16.479329] (-) TimerEvent: {}
+[16.579781] (-) TimerEvent: {}
+[16.680621] (-) TimerEvent: {}
+[16.785594] (-) TimerEvent: {}
+[16.887425] (-) TimerEvent: {}
+[16.988348] (-) TimerEvent: {}
+[17.089556] (-) TimerEvent: {}
+[17.194364] (-) TimerEvent: {}
+[17.295225] (-) TimerEvent: {}
+[17.396927] (-) TimerEvent: {}
+[17.500581] (-) TimerEvent: {}
+[17.602290] (-) TimerEvent: {}
+[17.706534] (-) TimerEvent: {}
+[17.810753] (-) TimerEvent: {}
+[17.912914] (-) TimerEvent: {}
+[18.014858] (-) TimerEvent: {}
+[18.115789] (-) TimerEvent: {}
+[18.216533] (-) TimerEvent: {}
+[18.318682] (-) TimerEvent: {}
+[18.419808] (-) TimerEvent: {}
+[18.525111] (-) TimerEvent: {}
+[18.627508] (-) TimerEvent: {}
+[18.729994] (-) TimerEvent: {}
+[18.831543] (-) TimerEvent: {}
+[18.935833] (-) TimerEvent: {}
+[19.036850] (-) TimerEvent: {}
+[19.139603] (-) TimerEvent: {}
+[19.242780] (-) TimerEvent: {}
+[19.350192] (-) TimerEvent: {}
+[19.467201] (-) TimerEvent: {}
+[19.568344] (-) TimerEvent: {}
+[19.609531] (ur5e_surface_path) StdoutLine: {'line': b'[ 75%] \x1b[32m\x1b[1mLinking CXX executable hello_moveit\x1b[0m\n'}
+[19.668814] (-) TimerEvent: {}
+[19.772312] (-) TimerEvent: {}
+[19.878477] (-) TimerEvent: {}
+[19.982709] (-) TimerEvent: {}
+[20.085564] (-) TimerEvent: {}
+[20.190184] (-) TimerEvent: {}
+[20.294195] (-) TimerEvent: {}
+[20.396739] (-) TimerEvent: {}
+[20.499433] (-) TimerEvent: {}
+[20.600470] (-) TimerEvent: {}
+[20.608830] (ur5e_surface_path) StdoutLine: {'line': b'[ 75%] Built target hello_moveit\n'}
+[20.701189] (-) TimerEvent: {}
+[20.802246] (-) TimerEvent: {}
+[20.903168] (-) TimerEvent: {}
+[21.003927] (-) TimerEvent: {}
+[21.106146] (-) TimerEvent: {}
+[21.206747] (-) TimerEvent: {}
+[21.307191] (-) TimerEvent: {}
+[21.407761] (-) TimerEvent: {}
+[21.508492] (-) TimerEvent: {}
+[21.610917] (-) TimerEvent: {}
+[21.715115] (-) TimerEvent: {}
+[21.815801] (-) TimerEvent: {}
+[21.916235] (-) TimerEvent: {}
+[22.017120] (-) TimerEvent: {}
+[22.120854] (-) TimerEvent: {}
+[22.222252] (-) TimerEvent: {}
+[22.326526] (-) TimerEvent: {}
+[22.426925] (-) TimerEvent: {}
+[22.528279] (-) TimerEvent: {}
+[22.617173] (ur5e_surface_path) StdoutLine: {'line': b'[100%] \x1b[32m\x1b[1mLinking CXX executable trace_cube\x1b[0m\n'}
+[22.628384] (-) TimerEvent: {}
+[22.728830] (-) TimerEvent: {}
+[22.830213] (-) TimerEvent: {}
+[22.931723] (-) TimerEvent: {}
+[22.956497] (ur5e_surface_path) StdoutLine: {'line': b'[100%] Built target trace_cube\n'}
+[22.974753] (ur5e_surface_path) CommandEnded: {'returncode': 0}
+[22.976898] (ur5e_surface_path) JobProgress: {'identifier': 'ur5e_surface_path', 'progress': 'install'}
+[22.984861] (ur5e_surface_path) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path'], 'cwd': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'env': OrderedDict({'LESSOPEN': '| /usr/bin/lesspipe %s', 'GZ_SIM_RESOURCE_PATH': '/opt/ros/jazzy/share', 'USER': 'iku', 'GZ_CONFIG_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/share/gz:/opt/ros/jazzy/opt/sdformat_vendor/share/gz:/opt/ros/jazzy/opt/gz_gui_vendor/share/gz:/opt/ros/jazzy/opt/gz_transport_vendor/share/gz:/opt/ros/jazzy/opt/gz_rendering_vendor/share/gz:/opt/ros/jazzy/opt/gz_plugin_vendor/share/gz:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/share/gz:/opt/ros/jazzy/opt/gz_msgs_vendor/share/gz:/opt/ros/jazzy/opt/gz_common_vendor/share/gz', 'XDG_SESSION_TYPE': 'wayland', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/lib:/opt/ros/jazzy/opt/gz_sensors_vendor/lib:/opt/ros/jazzy/opt/gz_physics_vendor/lib:/opt/ros/jazzy/opt/sdformat_vendor/lib:/opt/ros/jazzy/opt/rviz_ogre_vendor/lib:/opt/ros/jazzy/lib/aarch64-linux-gnu:/opt/ros/jazzy/opt/gz_gui_vendor/lib:/opt/ros/jazzy/opt/gz_transport_vendor/lib:/opt/ros/jazzy/opt/gz_rendering_vendor/lib:/opt/ros/jazzy/opt/gz_plugin_vendor/lib:/opt/ros/jazzy/opt/gz_fuel_tools_vendor/lib:/opt/ros/jazzy/opt/gz_msgs_vendor/lib:/opt/ros/jazzy/opt/gz_common_vendor/lib:/opt/ros/jazzy/opt/gz_math_vendor/lib:/opt/ros/jazzy/opt/gz_utils_vendor/lib:/opt/ros/jazzy/opt/gz_tools_vendor/lib:/opt/ros/jazzy/opt/gz_ogre_next_vendor/lib:/opt/ros/jazzy/opt/gz_dartsim_vendor/lib:/opt/ros/jazzy/opt/gz_cmake_vendor/lib:/opt/ros/jazzy/lib', 'HOME': '/home/iku', 'OLDPWD': '/home/iku/ur5e_ws', 'DESKTOP_SESSION': 'ubuntu', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'SYSTEMD_EXEC_PID': '2048', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'GNOME_KEYRING_CONTROL': '/run/user/1000/keyring', '_colcon_cd_root': '/opt/ros/jazzy/', 'DEBUGINFOD_URLS': 'https://debuginfod.ubuntu.com', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'COLCON_PREFIX_PATH': '/home/iku/ur5e_ws/install', 'ROS_DISTRO': 'jazzy', 'LOGNAME': 'iku', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'MEMORY_PRESSURE_WATCH': '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.SettingsDaemon.MediaKeys.service/memory.pressure', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'iku', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'PATH': '/opt/ros/jazzy/opt/gz_msgs_vendor/bin:/opt/ros/jazzy/opt/gz_tools_vendor/bin:/opt/ros/jazzy/opt/gz_ogre_next_vendor/bin:/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/ikusrv:@/tmp/.ICE-unix/1886,unix/ikusrv:/tmp/.ICE-unix/1886', 'XDG_MENU_PREFIX': 'gnome-', 'GNOME_TERMINAL_SCREEN': '/org/gnome/Terminal/screen/f9d8da2c_fb8c_48e1_b173_16c5fd47758b', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.OWW7O3', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.crdownload=00;90:*.dpkg-dist=00;90:*.dpkg-new=00;90:*.dpkg-old=00;90:*.dpkg-tmp=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90:*.swp=00;90:*.tmp=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:', 'GNOME_TERMINAL_SERVICE': ':1.143', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy', 'SHELL': '/bin/bash', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'ROS_AUTOMATIC_DISCOVERY_RANGE': 'SUBNET', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/iku/ur5e_ws/src/ur5e_surface_path/build/ur5e_surface_path', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/opt/ros/jazzy/lib/python3.12/site-packages', 'COLCON': '1', 'MEMORY_PRESSURE_WRITE': 'c29tZSAyMDAwMDAgMjAwMDAwMAA=', 'VTE_VERSION': '7600', 'CMAKE_PREFIX_PATH': '/home/iku/ur5e_ws/install/ur5e_surface_path:/opt/ros/jazzy/opt/gz_sim_vendor:/opt/ros/jazzy/opt/gz_sensors_vendor:/opt/ros/jazzy/opt/gz_physics_vendor:/opt/ros/jazzy/opt/sdformat_vendor:/opt/ros/jazzy/opt/gz_gui_vendor:/opt/ros/jazzy/opt/gz_transport_vendor:/opt/ros/jazzy/opt/gz_rendering_vendor:/opt/ros/jazzy/opt/gz_plugin_vendor:/opt/ros/jazzy/opt/gz_fuel_tools_vendor:/opt/ros/jazzy/opt/gz_msgs_vendor:/opt/ros/jazzy/opt/gz_common_vendor:/opt/ros/jazzy/opt/gz_math_vendor:/opt/ros/jazzy/opt/gz_utils_vendor:/opt/ros/jazzy/opt/gz_tools_vendor:/opt/ros/jazzy/opt/gz_ogre_next_vendor:/opt/ros/jazzy/opt/gz_dartsim_vendor:/opt/ros/jazzy/opt/gz_cmake_vendor:/opt/ros/jazzy'}), 'shell': False}
+[22.990793] (ur5e_surface_path) StdoutLine: {'line': b'-- Install configuration: ""\n'}
+[22.991245] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/hello_moveit\n'}
+[22.991820] (ur5e_surface_path) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/hello_moveit" to ""\n'}
+[22.991912] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/trace_cube\n'}
+[22.992825] (ur5e_surface_path) StdoutLine: {'line': b'-- Set non-toolchain portion of runtime path of "/home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/lib/ur5e_surface_path/trace_cube" to ""\n'}
+[22.992983] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/launch\n'}
+[22.993531] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/launch/ur5e_cube_moveit.launch.py\n'}
+[22.993654] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/urdf\n'}
+[22.993907] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/urdf/ur5e_cube.urdf.xacro\n'}
+[22.994420] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/config\n'}
+[22.994523] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes\n'}
+[22.994682] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes/50cmCube.stl\n'}
+[22.994763] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/meshes/tinkercadCube.stl\n'}
+[22.994837] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/worlds\n'}
+[22.994942] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/rviz\n'}
+[22.995182] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/package_run_dependencies/ur5e_surface_path\n'}
+[22.995295] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/parent_prefix_path/ur5e_surface_path\n'}
+[22.995554] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/ament_prefix_path.sh\n'}
+[22.995858] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/ament_prefix_path.dsv\n'}
+[22.996329] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/path.sh\n'}
+[22.996511] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/environment/path.dsv\n'}
+[22.996760] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.bash\n'}
+[22.997132] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.sh\n'}
+[22.997622] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.zsh\n'}
+[22.997876] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/local_setup.dsv\n'}
+[22.998251] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/package.dsv\n'}
+[22.998528] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ament_index/resource_index/packages/ur5e_surface_path\n'}
+[22.998735] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/cmake/ur5e_surface_pathConfig.cmake\n'}
+[22.998955] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/cmake/ur5e_surface_pathConfig-version.cmake\n'}
+[22.999265] (ur5e_surface_path) StdoutLine: {'line': b'-- Installing: /home/iku/ur5e_ws/src/ur5e_surface_path/install/ur5e_surface_path/share/ur5e_surface_path/package.xml\n'}
+[23.002665] (ur5e_surface_path) CommandEnded: {'returncode': 0}
+[23.017588] (ur5e_surface_path) JobEnded: {'identifier': 'ur5e_surface_path', 'rc': 0}
+[23.018360] (-) EventReactorShutdown: {}
