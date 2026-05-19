@@ -73,7 +73,7 @@
     <link name="cube">
     <visual>
       <geometry>
-        <mesh filename="file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/50cmCube.stl"
+        <mesh filename="package://ur5e_surface_path/meshes/50cmCube.stl"
               scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="red">
@@ -82,7 +82,7 @@
     </visual>
     <collision>
         <geometry>
-        <mesh filename="file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/50cmCube.stl"
+        <mesh filename="package://ur5e_surface_path/meshes/50cmCube.stl"
               scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>

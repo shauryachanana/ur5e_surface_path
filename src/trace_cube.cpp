@@ -17,6 +17,8 @@
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 #define DEBUGGER
 #define FULLCLAUDE //didnt have time to look into it, please do
 
@@ -125,8 +127,12 @@ int main(int argc, char** argv){
     /*------------PROCESS STL FILE------------*/
 
     //use info from a cad file
+    std::string mesh_path = "file://" + 
+    ament_index_cpp::get_package_share_directory("ur5e_surface_path") + 
+    "/meshes/50cmCube.stl";
+
     shapes::Mesh* mesh = shapes::createMeshFromResource(
-        "file:///home/iku/ur5e_ws/src/ur5e_surface_path/meshes/50cmCube.stl"
+        mesh_path
     );
 
     //create a vector to store all the triangles
