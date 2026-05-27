@@ -40,6 +40,10 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(DIRECTORY meshes
+    DESTINATION share/${PROJECT_NAME}
+)
+
 install(DIRECTORY launch urdf config meshes worlds rviz
   DESTINATION share/${PROJECT_NAME}
 )

@@ -20,7 +20,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #define DEBUGGER
-#define FULLCLAUDE //didnt have time to look into it, please do
+#define TEMPORARY
 
 struct Triangle{
     //corners
@@ -181,7 +181,7 @@ int main(int argc, char** argv){
         vectorOfTriangles.push_back(triangle);
     }
     
-    #ifdef FULLCLAUDE
+    #ifdef TEMPORARY
     //take a position of tcp
     auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
     auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
@@ -212,7 +212,7 @@ int main(int argc, char** argv){
     RCLCPP_WARN(logger, "TCP z: %f", currentTCP[2]);
     #endif
 
-    #ifndef FULLCLAUDE
+    #ifndef TEMPORARY
     geometry_msgs::msg::PoseStamped tcp_pose = gripper_group_interface.getCurrentPose();
     double currentTCP[3] = {tcp_pose.pose.position.x, tcp_pose.pose.position.y, tcp_pose.pose.position.z};
     RCLCPP_WARN(logger, "TCP x: %2f", tcp_pose.pose.position.x);
