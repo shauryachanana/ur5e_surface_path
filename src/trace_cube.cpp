@@ -34,29 +34,29 @@ struct Triangle{
     float normal_x, normal_y, normal_z;
 };
 
-void calculateTriangleNormal(Triangle& triangle){
+void calculateTriangleNormal(Triangle& triangle, shapes::Mesh* mesh, int index){
     // two edges of the triangle
-    float edge1x = triangle.x1 - triangle.x0;
-    float edge1y = triangle.y1 - triangle.y0;
-    float edge1z = triangle.z1 - triangle.z0;
+    // float edge1x = triangle.x1 - triangle.x0;
+    // float edge1y = triangle.y1 - triangle.y0;
+    // float edge1z = triangle.z1 - triangle.z0;
 
-    float edge2x = triangle.x2 - triangle.x0;
-    float edge2y = triangle.y2 - triangle.y0;
-    float edge2z = triangle.z2 - triangle.z0;
+    // float edge2x = triangle.x2 - triangle.x0;
+    // float edge2y = triangle.y2 - triangle.y0;
+    // float edge2z = triangle.z2 - triangle.z0;
 
-    // cross product = normal vector
-    float nx = edge1y * edge2z - edge1z * edge2y;
-    float ny = edge1z * edge2x - edge1x * edge2z;
-    float nz = edge1x * edge2y - edge1y * edge2x;
+    // // cross product = normal vector
+    // float nx = edge1y * edge2z - edge1z * edge2y;
+    // float ny = edge1z * edge2x - edge1x * edge2z;
+    // float nz = edge1x * edge2y - edge1y * edge2x;
 
-    // normalize
-    float length = sqrt(
-        pow(nx, 2) + pow(ny, 2) + pow(nz, 2)
-    );
+    // // normalize
+    // float length = sqrt(
+    //     pow(nx, 2) + pow(ny, 2) + pow(nz, 2)
+    // );
 
-    triangle.normal_x = nx / length;
-    triangle.normal_y = ny / length;
-    triangle.normal_z = nz / length;
+    triangle.normal_x = mesh->triangle_normals[index*3 + 0];
+    triangle.normal_y = mesh->triangle_normals[index*3 + 1];
+    triangle.normal_z = mesh->triangle_normals[index*3 + 2];
 }
 
 int main(int argc, char** argv){
@@ -175,7 +175,7 @@ int main(int argc, char** argv){
         triangle.centre_z = (triangle.z0 + triangle.z1 + triangle.z2) / 3.0f;
 
         //store the orientation
-        calculateTriangleNormal(triangle);
+        calculateTriangleNormal(triangle, mesh, i);
         
         //add this triangle to our vector
         vectorOfTriangles.push_back(triangle);
@@ -288,7 +288,7 @@ int main(int argc, char** argv){
             RCLCPP_WARN(logger, "start computation number %d", i);
             //multiply by 0.001f so they are "mm"
             target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
-            target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f;
+            target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f - 0.1f;
             target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
 
             #ifdef DEBUGGER
@@ -298,24 +298,27 @@ int main(int argc, char** argv){
             #endif
 
             /*calculate the orientation (so its always perpendicular)*/
-
-            // target_pose.orientation.x = - 1 / sqrt(2);
-            // target_pose.orientation.y = 0.0;
-            // target_pose.orientation.z = 0.0;
-            // target_pose.orientation.w = 1 / sqrt(2);
-
+            #ifndef TEMPORARY
+            target_pose.orientation.x = - 1 / sqrt(2);
+            target_pose.orientation.y = 0.0;
+            target_pose.orientation.z = 0.0;
+            target_pose.orientation.w = 1 / sqrt(2);
+            #endif
             /*THIS IS SUPPOSED TO RATATE THE TCP PERPENDICULARLY TO THE SURFACE*/
-
+            #ifdef TEMPORARY
             tf2::Vector3 normal(
                 sameSideTriangles[i].normal_x,
                 sameSideTriangles[i].normal_y,
                 sameSideTriangles[i].normal_z
             );
+            RCLCPP_WARN(logger, "x of normal: %2f", normal.x());
+            RCLCPP_WARN(logger, "y of normal: %2f", normal.y());
+            RCLCPP_WARN(logger, "z of normal: %2f", normal.z());
             normal.normalize();
             tf2::Vector3 z_axis = normal;  // Z into the surface
             z_axis.normalize();
 
-            tf2::Vector3 world_up(0.0, 0.0, 1.0);
+            tf2::Vector3 world_up(0.0, 0.0, -1.0);
             if (std::abs(z_axis.dot(world_up)) > 0.99) {
                 world_up = tf2::Vector3(0.0, 1.0, 0.0);
             }
@@ -345,6 +348,7 @@ int main(int argc, char** argv){
             RCLCPP_WARN(logger, "y of quart : %2f", q.y());
             RCLCPP_WARN(logger, "z of quart : %2f", q.z());
             RCLCPP_WARN(logger, "w of quart : %2f", q.w());
+            #endif
             //add this pose to our vector
             target_poses.push_back(target_pose);
 
