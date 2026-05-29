@@ -94,7 +94,7 @@ int main(int argc, char** argv){
     std::vector<double> preferred_joints = {
         -101.0 * M_PI / 180.0,
         -115.0 * M_PI / 180.0,
-        -40.0 * M_PI / 180.0,
+        -25.0 * M_PI / 180.0,
         -205.0 * M_PI / 180.0,
         -101.0 * M_PI / 180.0,
         -180.0 * M_PI / 180.0
@@ -299,38 +299,52 @@ int main(int argc, char** argv){
 
             /*calculate the orientation (so its always perpendicular)*/
 
-            target_pose.orientation.x = - 1 / sqrt(2);
-            target_pose.orientation.y = 0.0;
-            target_pose.orientation.z = 0.0;
-            target_pose.orientation.w = 1 / sqrt(2);
+            // target_pose.orientation.x = - 1 / sqrt(2);
+            // target_pose.orientation.y = 0.0;
+            // target_pose.orientation.z = 0.0;
+            // target_pose.orientation.w = 1 / sqrt(2);
 
             /*THIS IS SUPPOSED TO RATATE THE TCP PERPENDICULARLY TO THE SURFACE*/
 
-            // tf2::Vector3 normal(sameSideTriangles[i].normal_x, sameSideTriangles[i].normal_y, sameSideTriangles[i].normal_z);
-            // //TCP should point TO the surface, while normals point OUT -> minus
-            // tf2::Vector3 approach = -normal;
-            // //need to give tf2 a reference (here we use Z axis)
-            // tf2::Vector3 zAxis(0, 0, 1);
-            // //find ritation axis (im not sure how)
-            // tf2::Vector3 rotationAxis = zAxis.cross(approach);
-            // if(rotationAxis.length() < tolerance){
-            //     target_pose.orientation.x = 0.0;
-            //     target_pose.orientation.y = 0.0;
-            //     target_pose.orientation.z = 0.0;
-            //     target_pose.orientation.w = 1.0;
-            // } else {
-            //     rotationAxis.normalize();
-            //     float angle = acos(zAxis.dot(approach));
-            //     tf2::Quaternion q(rotationAxis, angle);
-            //     q.normalize();
-            //     target_pose.orientation.x = q.x();
-            //     target_pose.orientation.y = q.y();
-            //     target_pose.orientation.z = q.z();
-            //     target_pose.orientation.w = q.w();
-            // }
+            tf2::Vector3 normal(
+                sameSideTriangles[i].normal_x,
+                sameSideTriangles[i].normal_y,
+                sameSideTriangles[i].normal_z
+            );
+            normal.normalize();
+            tf2::Vector3 z_axis = normal;  // Z into the surface
+            z_axis.normalize();
 
-            /*-----------------------------------------------------------------*/
+            tf2::Vector3 world_up(0.0, 0.0, 1.0);
+            if (std::abs(z_axis.dot(world_up)) > 0.99) {
+                world_up = tf2::Vector3(0.0, 1.0, 0.0);
+            }
 
+            tf2::Vector3 x_axis = world_up.cross(z_axis);
+            x_axis.normalize();
+
+            tf2::Vector3 y_axis = z_axis.cross(x_axis);
+            y_axis.normalize();
+
+            tf2::Matrix3x3 rot(
+                x_axis.x(), y_axis.x(), z_axis.x(),
+                x_axis.y(), y_axis.y(), z_axis.y(),
+                x_axis.z(), y_axis.z(), z_axis.z()
+            );
+
+            tf2::Quaternion q;
+            rot.getRotation(q);
+            q.normalize();
+
+            target_pose.orientation.x = q.x();
+            target_pose.orientation.y = q.y();
+            target_pose.orientation.z = q.z();
+            target_pose.orientation.w = q.w();
+
+            RCLCPP_WARN(logger, "x of quart : %2f", q.x());
+            RCLCPP_WARN(logger, "y of quart : %2f", q.y());
+            RCLCPP_WARN(logger, "z of quart : %2f", q.z());
+            RCLCPP_WARN(logger, "w of quart : %2f", q.w());
             //add this pose to our vector
             target_poses.push_back(target_pose);
 
