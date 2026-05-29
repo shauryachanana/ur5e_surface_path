@@ -17,7 +17,10 @@ find_package(tf2_eigen REQUIRED)
 find_package(geometric_shapes REQUIRED)
 
 add_executable(hello_moveit src/hello_moveit.cpp)
-add_executable(trace_cube src/trace_cube.cpp)
+add_executable(trace_cube 
+              src/trace_cube.cpp
+              src/trianglesOperations.cpp
+              src/pathPlanning.cpp)
 
 set(dependencies
   rclcpp

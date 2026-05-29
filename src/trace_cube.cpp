@@ -1,248 +1,68 @@
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <memory>
-#include <rclcpp/rclcpp.hpp>
-#include <moveit/move_group_interface/move_group_interface.hpp>
+#include "trace_cube.hpp"
 
-#include <fstream> // reading files from disk
-#include <vector>
-#include <math.h>
-#include <chrono> //for selay of 2s
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Vector3.h>
-#include <geometric_shapes/shapes.h> //defines what a mesh object is
-#include <geometric_shapes/mesh_operations.h> //loads .stl files
-#include <geometric_shapes/shape_operations.h> //mesh operations
+std::shared_ptr<rclcpp::Node> node;
+std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-
-#include <ament_index_cpp/get_package_share_directory.hpp>
-
-#define DEBUGGER
-#define TEMPORARY
-
-struct Triangle{
-    //corners
-    float x0, y0, z0; //corner/vertex 0
-    float x1, y1, z1; //corner/vertex 1
-    float x2, y2, z2; //corner/vertex 2
-
-    float centre_x, centre_y, centre_z; //centre of the triangle
-
-    //normals
-    float normal_x, normal_y, normal_z;
-};
-
-void calculateTriangleNormal(Triangle& triangle, shapes::Mesh* mesh, int index){
-    // two edges of the triangle
-    // float edge1x = triangle.x1 - triangle.x0;
-    // float edge1y = triangle.y1 - triangle.y0;
-    // float edge1z = triangle.z1 - triangle.z0;
-
-    // float edge2x = triangle.x2 - triangle.x0;
-    // float edge2y = triangle.y2 - triangle.y0;
-    // float edge2z = triangle.z2 - triangle.z0;
-
-    // // cross product = normal vector
-    // float nx = edge1y * edge2z - edge1z * edge2y;
-    // float ny = edge1z * edge2x - edge1x * edge2z;
-    // float nz = edge1x * edge2y - edge1y * edge2x;
-
-    // // normalize
-    // float length = sqrt(
-    //     pow(nx, 2) + pow(ny, 2) + pow(nz, 2)
-    // );
-
-    triangle.normal_x = mesh->triangle_normals[index*3 + 0];
-    triangle.normal_y = mesh->triangle_normals[index*3 + 1];
-    triangle.normal_z = mesh->triangle_normals[index*3 + 2];
-}
+std::string mesh_path = "file://" + ament_index_cpp::get_package_share_directory("ur5e_surface_path") + "/meshes/50cmCube.stl";
+shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
 
 int main(int argc, char** argv){
     rclcpp::init(argc, argv);
 
-    auto const node = std::make_shared<rclcpp::Node>(
+    // initialize them here after rclcpp::init()
+    node = std::make_shared<rclcpp::Node>(
         "trace_cube",
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
 
-    auto const logger = rclcpp::get_logger("trace_cube");
-
-    using moveit::planning_interface::MoveGroupInterface;
-
-    //create an object and pass our node and the name of the structure you want to control (founf in "Planning" tab)
-    auto gripper_group_interface = MoveGroupInterface(node, "ur_manipulator");
-
-    //set id from "Context" tab sed desired planning library (open motion plannin library)
-    gripper_group_interface.setPlanningPipelineId("ompl");
-    //decides which motion algorithm to use
-    gripper_group_interface.setPlannerId("RRTConnectkConfigDefault");
-
-    //~the longer thr better
-    gripper_group_interface.setPlanningTime(5.0);
-    //from 0 to 1
-    gripper_group_interface.setMaxVelocityScalingFactor(1.0);
-    //0 to 1, 0 for const velocity 
-    gripper_group_interface.setMaxAccelerationScalingFactor(0.0);
-    
-    RCLCPP_INFO(logger, "Planning pipeline: %s", gripper_group_interface.getPlanningPipelineId().c_str());
-    RCLCPP_INFO(logger, "Planner ID: %s", gripper_group_interface.getPlannerId().c_str());
-    RCLCPP_INFO(logger, "Planning time: %.2f", gripper_group_interface.getPlanningTime());
-
-    //the initial position (right before the tracing)
-    std::vector<double> preferred_joints = {
-        -101.0 * M_PI / 180.0,
-        -115.0 * M_PI / 180.0,
-        -25.0 * M_PI / 180.0,
-        -205.0 * M_PI / 180.0,
-        -101.0 * M_PI / 180.0,
-        -180.0 * M_PI / 180.0
-    };
-
-    //sets the joint val as a target but doesnt move yet
-    gripper_group_interface.setJointValueTarget(preferred_joints);
-    
-    moveit::planning_interface::MoveGroupInterface::Plan home_plan;
-    //msg type to set a pose
-    geometry_msgs::msg::Pose target_pose;
-  
-    //for the obect created before, call plan which saves the trajectory to reach preferred_joints to home_plan address
-    //not a straight line, arbitrary trajectory
-    auto ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
-
-    //after conversion to bool we see if position is reachable
-    if (!ok) {
-        RCLCPP_ERROR(logger, "Phase 1 planning failed!");
-        rclcpp::shutdown();
-        return 1;
-    }
-
-    //if it is reachable, we can and do move to a target joint position
-    gripper_group_interface.execute(home_plan);
-
-    //create a vector that contains the set of "waypoints"
-    std::vector<geometry_msgs::msg::Pose> target_poses;
-    
-    /*------------PROCESS STL FILE------------*/
-
-    //use info from a cad file
-    std::string mesh_path = "file://" + 
-    ament_index_cpp::get_package_share_directory("ur5e_surface_path") + 
-    "/meshes/50cmCube.stl";
-
-    shapes::Mesh* mesh = shapes::createMeshFromResource(
-        mesh_path
+    gripper_group_interface = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
+        node, "ur_manipulator"
     );
+
+    init();
+
+    goHome();
+
+    auto logger = rclcpp::get_logger("main");
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "home");
+    #endif
+
+    /*------------PROCESS STL FILE------------*/
 
     //create a vector to store all the triangles
     //array is bad bc we dont have an amount of triangles (could use triangle_count but why)
     std::vector<Triangle> vectorOfTriangles;
+    //vector for all z's
+    std::vector<float> ZofTriang;
 
-    //store trangles to a vector
-    //will upload a scetch on how the calculation of index is done
-    for(unsigned int i = 0; i< mesh->triangle_count; i++){
-        /*triangles are described in versices:
-        triangle1 = vertix1 vertix2 vertix3
-        so we calculate index of vertices of each triangle here:
-        */
-        int firstVertexOfTriangle = mesh->triangles[i*3 + 0];
-        int secondVertexOfTriangle = mesh->triangles[i*3 + 1];
-        int thirdVertexOfTriangle = mesh->triangles[i*3 + 2];
-
-        //create a triangle
-        Triangle triangle;
-
-        /*now we need to get actual xyz of each point*/
-        //first vertex
-        triangle.x0 = mesh->vertices[firstVertexOfTriangle * 3 + 0];
-        triangle.y0 = mesh->vertices[firstVertexOfTriangle * 3 + 1];
-        triangle.z0 = mesh->vertices[firstVertexOfTriangle * 3 + 2];
-
-        //second vertex
-        triangle.x1 = mesh->vertices[secondVertexOfTriangle * 3 + 0];
-        triangle.y1 = mesh->vertices[secondVertexOfTriangle * 3 + 1];
-        triangle.z1 = mesh->vertices[secondVertexOfTriangle * 3 + 2];
-
-        //third vertex
-        triangle.x2 = mesh->vertices[thirdVertexOfTriangle * 3 + 0];
-        triangle.y2 = mesh->vertices[thirdVertexOfTriangle * 3 + 1];
-        triangle.z2 = mesh->vertices[thirdVertexOfTriangle * 3 + 2];
-
-        //centre of triangle
-        triangle.centre_x = (triangle.x0 + triangle.x1 + triangle.x2) / 3.0f;
-        triangle.centre_y = (triangle.y0 + triangle.y1 + triangle.y2) / 3.0f;
-        triangle.centre_z = (triangle.z0 + triangle.z1 + triangle.z2) / 3.0f;
-
-        //store the orientation
-        calculateTriangleNormal(triangle, mesh, i);
-        
-        //add this triangle to our vector
-        vectorOfTriangles.push_back(triangle);
-    }
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "triang extract now:");
+    #endif
+    triangleExtraction(vectorOfTriangles, ZofTriang);
     
     #ifdef TEMPORARY
-    //take a position of tcp
-    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-
-    rclcpp::sleep_for(std::chrono::seconds(1));
-
-    geometry_msgs::msg::TransformStamped transform;
-    try {
-        transform = tf_buffer->lookupTransform(
-            "base_link",
-            "tool0",
-            tf2::TimePointZero
-        );
-    } catch (tf2::TransformException& ex) {
-        RCLCPP_ERROR(logger, "TF failed: %s", ex.what());
-        rclcpp::shutdown();
-        return 1;
-    }
-
-    double currentTCP[3] = {
-        transform.transform.translation.x,
-        transform.transform.translation.y,
-        transform.transform.translation.z
-    };
-
-    RCLCPP_WARN(logger, "TCP x: %f", currentTCP[0]);
-    RCLCPP_WARN(logger, "TCP y: %f", currentTCP[1]);
-    RCLCPP_WARN(logger, "TCP z: %f", currentTCP[2]);
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "current now:");
+    #endif
+    double currentTCP[3] = {};
+    getTCPpose(currentTCP);
     #endif
 
     #ifndef TEMPORARY
     geometry_msgs::msg::PoseStamped tcp_pose = gripper_group_interface.getCurrentPose();
     double currentTCP[3] = {tcp_pose.pose.position.x, tcp_pose.pose.position.y, tcp_pose.pose.position.z};
-    RCLCPP_WARN(logger, "TCP x: %2f", tcp_pose.pose.position.x);
-    RCLCPP_WARN(logger, "TCP y: %2f", tcp_pose.pose.position.y);
-    RCLCPP_WARN(logger, "TCP z: %2f", tcp_pose.pose.position.z);
     #endif
 
     #ifdef DEBUGGER
-    RCLCPP_WARN(logger, "x: %2f", vectorOfTriangles[0].centre_x);
-    RCLCPP_WARN(logger, "y: %2f", vectorOfTriangles[0].centre_y);
-    RCLCPP_WARN(logger, "z: %2f", vectorOfTriangles[0].centre_z);
+    RCLCPP_WARN(logger, "TCP x: %f", currentTCP[0]);
+    RCLCPP_WARN(logger, "TCP y: %f", currentTCP[1]);
+    RCLCPP_WARN(logger, "TCP z: %f", currentTCP[2]);
     #endif
 
-    //find closest triangle to a tcp
-    int closestTriangle = -1;
-    float minDist = 100000;
-    for(unsigned int i = 0; i < mesh->triangle_count; i++){
-        float distanceToTriangle = sqrt(
-            pow((vectorOfTriangles[i].centre_x * 0.001f) - currentTCP[0], 2) + 
-            pow((vectorOfTriangles[i].centre_y * 0.001f) - currentTCP[1], 2) + 
-            pow((vectorOfTriangles[i].centre_z * 0.001f) - currentTCP[2], 2)
-        );
-        if(distanceToTriangle < minDist){
-            minDist = distanceToTriangle;
-            closestTriangle = i;
-        }
-    }
-
     //this is out closest triangle to a tcp:
-    Triangle closest = vectorOfTriangles[closestTriangle];
+    Triangle closest = vectorOfTriangles[getClosestTriangle(vectorOfTriangles, currentTCP)];
 
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "closest triangle x: %2f", closest.centre_x);
@@ -281,40 +101,42 @@ int main(int argc, char** argv){
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
+    //create a vector that contains the set of "waypoints"
+    std::vector<geometry_msgs::msg::Pose> target_poses;
+
+    //msg type to set a pose
+    geometry_msgs::msg::Pose target_pose;
+
     /*----------START THE OPERATION----------*/
 
     for(unsigned int i = 0; i < sameSideTriangles.size(); i++){
-        // if((sameSideTriangles[i].centre_z * 0.001f) > 0.0001f){
-            RCLCPP_WARN(logger, "start computation number %d", i);
+        if((sameSideTriangles[i].centre_z * 0.001f) > 0.0001f){
             //multiply by 0.001f so they are "mm"
             target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
             target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f - 0.1f;
             target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
 
             #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "x of %d : %2f", i, target_pose.position.x);
-            RCLCPP_WARN(logger, "y of %d : %2f", i, target_pose.position.y);
-            RCLCPP_WARN(logger, "z of %d : %2f", i, target_pose.position.z);
+            RCLCPP_WARN(logger, "x of target %d : %2f", i, target_pose.position.x);
+            RCLCPP_WARN(logger, "y of target %d : %2f", i, target_pose.position.y);
+            RCLCPP_WARN(logger, "z of target %d : %2f", i, target_pose.position.z);
             #endif
 
-            /*calculate the orientation (so its always perpendicular)*/
-            #ifndef TEMPORARY
-            target_pose.orientation.x = - 1 / sqrt(2);
-            target_pose.orientation.y = 0.0;
-            target_pose.orientation.z = 0.0;
-            target_pose.orientation.w = 1 / sqrt(2);
-            #endif
-            /*THIS IS SUPPOSED TO RATATE THE TCP PERPENDICULARLY TO THE SURFACE*/
-            #ifdef TEMPORARY
+            /*ROTATES THE TCP PERPENDICULARLY TO THE SURFACE*/
             tf2::Vector3 normal(
                 sameSideTriangles[i].normal_x,
                 sameSideTriangles[i].normal_y,
                 sameSideTriangles[i].normal_z
             );
-            RCLCPP_WARN(logger, "x of normal: %2f", normal.x());
-            RCLCPP_WARN(logger, "y of normal: %2f", normal.y());
-            RCLCPP_WARN(logger, "z of normal: %2f", normal.z());
+
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "x of normal %d : %2f", i, normal.x());
+            RCLCPP_WARN(logger, "y of normal %d : %2f", i, normal.y());
+            RCLCPP_WARN(logger, "z of normal %d : %2f", i, normal.z());
+            #endif
+
             normal.normalize();
+
             tf2::Vector3 z_axis = normal;  // Z into the surface
             z_axis.normalize();
 
@@ -344,18 +166,20 @@ int main(int argc, char** argv){
             target_pose.orientation.z = q.z();
             target_pose.orientation.w = q.w();
 
+            #ifdef DEBUGGER
             RCLCPP_WARN(logger, "x of quart : %2f", q.x());
             RCLCPP_WARN(logger, "y of quart : %2f", q.y());
             RCLCPP_WARN(logger, "z of quart : %2f", q.z());
             RCLCPP_WARN(logger, "w of quart : %2f", q.w());
             #endif
+
             //add this pose to our vector
             target_poses.push_back(target_pose);
 
             //cartesian allows linear movement, no curves
             //computeCartesianPath(vector of the poses, step at every mm, trajectory, avoid colisions?)
             //no movement
-            double fraction = gripper_group_interface.computeCartesianPath(target_poses, 0.01, trajectory, true);
+            double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
 
             #ifdef DEBUGGER
                 RCLCPP_WARN(logger, "Cartesian Path coverage: %.2f%%", fraction * 100.00);
@@ -367,7 +191,7 @@ int main(int argc, char** argv){
                 //so our new trajectory which was calculated in computeCartesianPath is now stored in new cartesian_plan
                 cartesian_plan.trajectory = trajectory;
                 //now we can and do 
-                gripper_group_interface.execute(cartesian_plan);
+                gripper_group_interface->execute(cartesian_plan);
             }
             else {
                 RCLCPP_ERROR(logger, "Cartesian path only %.1f%% complete — collision likely blocked it!", fraction * 100.0);
@@ -376,33 +200,16 @@ int main(int argc, char** argv){
 
             //remove the pose that was just executed, now we have empty array again
             target_poses.pop_back();
-        // }else{
-            // RCLCPP_WARN(logger, "too low");
-        // }
+        }else{
+            RCLCPP_WARN(logger, "too low");
+        }
     }
     /*---------------------------------------*/
 
-    preferred_joints = {
-        0.0,
-        - M_PI / 2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-    };
+    goHome();
 
-    gripper_group_interface.setJointValueTarget(preferred_joints);
-    
-    ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
-
-    if(!ok){
-        RCLCPP_ERROR(logger, "Planning to home failed");
-        rclcpp::shutdown();
-        return 1;
-    }
-
-    RCLCPP_INFO(logger, "Cube Face Tracing complete. Returning to home position now...");
-    gripper_group_interface.execute(home_plan);
+    gripper_group_interface.reset();
+    node.reset();
 
     rclcpp::shutdown();
     return 0;
