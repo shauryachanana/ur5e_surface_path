@@ -1,8 +1,10 @@
 #include "trace_cube.hpp"
 
+//global node
 std::shared_ptr<rclcpp::Node> node;
 std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
+//load a file
 std::string mesh_path = "file://" + ament_index_cpp::get_package_share_directory("ur5e_surface_path") + "/meshes/50cmCube.stl";
 shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
 
@@ -28,9 +30,35 @@ int main(int argc, char** argv){
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "home");
     #endif
+    
+    /*===================FIND THE POINT TO START===================*/
 
-    /*------------PROCESS STL FILE------------*/
+    #ifdef POINTCLOUDS
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
+    // Load PCD file to cloud pbject above
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(mesh_path, *cloud) == -1)
+    {
+        PCL_ERROR("Couldn't read file\n");
+        return;
+    }
+
+    pcl::KdTreeFLANN<pcl::PointXYZ> kdTree;
+
+    //create kdTree
+    kdTree.setInputCloud(cloud);
+
+    //in this vector we will get an index of the nearest neighbour
+    std::vector<int> pointIdxKNNSearch(1);
+    //in this vector we will get a distance to the nearest neighbour
+    std::vector<float> pointKNNSquaredDistance(1);
+
+    //find the neighbour
+    getClosestPoint(kdTree, pointIdxKNNSearch, pointKNNSquaredDistance);
+
+    #endif
+
+    #ifdef TRIANGLES
     //create a vector to store all the triangles
     //array is bad bc we dont have an amount of triangles (could use triangle_count but why)
     std::vector<Triangle> vectorOfTriangles;
@@ -97,7 +125,9 @@ int main(int argc, char** argv){
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "same side: %zu", sameSideTriangles.size());
     #endif
-    /*----------------------------------------*/
+
+    #endif
+    /*=============================================================*/
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
@@ -109,6 +139,17 @@ int main(int argc, char** argv){
 
     /*----------START THE OPERATION----------*/
 
+    #ifdef POINTCLOUDS
+    for(unsigned int i = 0; i < 1000; i++){
+        getClosestPoint(kdTree, pointIdxKNNSearch, pointKNNSquaredDistance);
+        target_pose.position.x = (*cloud)[ pointIdxKNNSearch[0] ].x;
+        target_pose.position.y = (*cloud)[ pointIdxKNNSearch[0] ].y + 1.00f;
+        target_pose.position.z = (*cloud)[ pointIdxKNNSearch[0] ].z;
+        i++;
+    }
+    #endif
+
+    #ifdef TRIANGLES
     for(unsigned int i = 0; i < sameSideTriangles.size(); i++){
         if((sameSideTriangles[i].centre_z * 0.001f) > 0.0001f){
             //multiply by 0.001f so they are "mm"
@@ -204,6 +245,7 @@ int main(int argc, char** argv){
             RCLCPP_WARN(logger, "too low");
         }
     }
+    #endif
     /*---------------------------------------*/
 
     goHome();

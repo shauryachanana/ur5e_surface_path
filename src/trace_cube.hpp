@@ -25,8 +25,15 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+//for point clouds:
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
 #define DEBUGGER
 #define TEMPORARY
+// #define TRIANGLES
+#define POINTCLOUDS
 
 extern std::shared_ptr<rclcpp::Node> node;
 
@@ -54,5 +61,6 @@ void init();
 void goHome();
 void getTCPpose(double* currentTCP);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
+void getClosestPoint(pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, std::vector<int>& pointIdxKNNSearch, std::vector<float>& pointKNNSquaredDistance);
 
 #endif
