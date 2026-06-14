@@ -127,9 +127,11 @@ int main(int argc, char** argv){
     /*------------PROCESS STL FILE------------*/
 
     //use info from a cad file
-    std::string mesh_path = "file://" + 
-    ament_index_cpp::get_package_share_directory("ur5e_surface_path") + 
-    "/meshes/50cmCube.stl";
+	node->declare_parameter("mesh_filename", "bowl_surface.stl");
+	std::string mesh_filename = node->get_parameter("mesh_filename").as_string();
+	std::string mesh_path = "file://" +
+    	ament_index_cpp::get_package_share_directory("ur5e_surface_path") +
+    	"/meshes/" + mesh_filename;
 
     shapes::Mesh* mesh = shapes::createMeshFromResource(
         mesh_path

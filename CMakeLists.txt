@@ -39,7 +39,10 @@ install(TARGETS
   trace_cube
   DESTINATION lib/${PROJECT_NAME}
 )
-
+install(PROGRAMS
+  src/reconstruct_mesh.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 install(DIRECTORY meshes
     DESTINATION share/${PROJECT_NAME}
 )
