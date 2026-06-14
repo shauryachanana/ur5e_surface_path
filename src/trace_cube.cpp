@@ -30,10 +30,13 @@ int main(int argc, char** argv){
     
     /*===================FIND THE POINT TO START===================*/
 
+    std::vector<Triangle> vectorOfTriangles;
+
+    triangleExtraction(vectorOfTriangles);
+
+    #ifdef POINTCLOUDS
     //create a point cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    std::vector<Triangle> vectorOfTriangles;
 
     //now we have all the triangle centres and theor normals stored
     //centers go to the point cloud obj for easy nearest neighbour calculation
@@ -49,6 +52,7 @@ int main(int argc, char** argv){
     std::vector<int> pointIdxKNNSearch(1);
     //in this vector we will get a distance to the nearest neighbour
     std::vector<float> pointKNNSquaredDistance(1);
+    #endif
 
     /*=============================================================*/
 
@@ -60,9 +64,67 @@ int main(int argc, char** argv){
     //msg type to set a pose
     geometry_msgs::msg::Pose target_pose;
 
-    int currentTriangleIndex = 0;
+    /*========FIND TRIANGLE WITH THE LEAST AMOUNT OF EDGES=========*/
+
+    std::vector<Triangle> singleNeighbpurTrangles;
+    std::vector<Triangle> doubleNeighbpurTrangles;
+    int closestTriangle = 0;
+
+    for(unsigned int i = 0; i < vectorOfTriangles.size(); i++){
+        if(vectorOfTriangles[i].getValidNeighbours() == 1){
+            singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
+        }else if(vectorOfTriangles[i].getValidNeighbours() == 2){
+            doubleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
+        }
+
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "x of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[0]);
+        RCLCPP_WARN(logger, "y of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[1]);
+        RCLCPP_WARN(logger, "z of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[2]);
+        #endif
+    }
+
+    //compare the distances to the triangles with the least amount of neighbours 
+    double currentTCP[3] = {0, 0, 0};
+    getTCPpose(currentTCP);
+    
+    if(singleNeighbpurTrangles.size() != 0){
+        //if there are triangles with a single neighbour
+        closestTriangle = getClosestTriangle(singleNeighbpurTrangles, currentTCP);
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "closest single neighbour: %d", closestTriangle);
+        #endif
+    }else if(doubleNeighbpurTrangles.size() != 0){
+        //if there are no triangles with a single neighbour but with two neighbours
+        closestTriangle = getClosestTriangle(doubleNeighbpurTrangles, currentTCP);
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "closest double neighbour: %d", closestTriangle);
+        #endif
+    }else{
+        //if there are only triangles with 3 neighbpurs:
+        closestTriangle = getClosestTriangle(vectorOfTriangles, currentTCP);
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "closest tripple neighbour: %d", closestTriangle);
+        #endif
+    }
+
+    //try to reach the triangle with the least amout of neighbours:
+    target_pose = targetPose(vectorOfTriangles[closestTriangle]);
+
+    if(!moveToPoint(target_pose)){
+        #ifdef DEBUGGER
+        RCLCPP_ERROR(logger, "first triangle failed!");
+        #endif
+    }else{
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "first triangle success!");
+        #endif
+    }
+
+    /*=============================================================*/
 
     /*=================GET TO THE CLOSEST TRIANGLE=================*/
+    #ifdef POINTCLOUDS
     //go  to the closest triangle
     getClosestPoint(kdTree, pointIdxKNNSearch, pointKNNSquaredDistance);
 
@@ -128,39 +190,30 @@ int main(int argc, char** argv){
     RCLCPP_WARN(logger, "w of quart : %2f", q.w());
     #endif
 
-    if(!moveToPoint(target_pose)){
-        #ifdef DEBUGGER
-        RCLCPP_ERROR(logger, "first triangle failed!");
-        #endif
-    }else{
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "moving to the first triangle");
-        #endif
-        return 0;
-    }
+    #endif
 
     /*=============================================================*/
 
 
     /*=====================START THE OPERATION=====================*/
 
-    for(int i = 0; i < 3; i++){
-        int nextTriangleIndex = vectorOfTriangles[currentTriangleIndex].myNeighbours[i];
+    // for(int i = 0; i < 3; i++){
+    //     int nextTriangleIndex = vectorOfTriangles[currentTriangleIndex].myNeighbours[i];
 
-        if((vectorOfTriangles[nextTriangleIndex].myNeighbours[i] != -1) 
-            && //is there is a neighbour
-            (vectorOfTriangles[nextTriangleIndex].unreachableCounter < 3) 
-            && //and it is not unreachable
-            (!vectorOfTriangles[nextTriangleIndex].traced)){ //and it was not traced
+    //     if((vectorOfTriangles[nextTriangleIndex].myNeighbours[i] != -1) 
+    //         && //is there is a neighbour
+    //         (vectorOfTriangles[nextTriangleIndex].unreachableCounter < 3) 
+    //         && //and it is not unreachable
+    //         (!vectorOfTriangles[nextTriangleIndex].traced)){ //and it was not traced
 
-            traceThreeNeighbours(
-                vectorOfTriangles, 
-                currentTriangleIndex, 
-                vectorOfTriangles[nextTriangleIndex], 
-                vectorOfTriangles[currentTriangleIndex].triangleEdges[i]
-            );
-        }
-    }
+    //         traceNeighbour(
+    //             vectorOfTriangles, 
+    //             vectorOfTriangles[currentTriangleIndex], 
+    //             vectorOfTriangles[nextTriangleIndex], 
+    //             vectorOfTriangles[currentTriangleIndex].triangleEdges[i]
+    //         );
+    //     }
+    // }
 
     /*=============================================================*/
 

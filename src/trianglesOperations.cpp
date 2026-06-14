@@ -3,10 +3,15 @@
 // std::unordered_map<std::pair<int,int>, int> edgeDetection;
 std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
 
+#ifdef POINTCLOUDS
 void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud){
+#endif
+void triangleExtraction(std::vector<Triangle> &vectorOfTriangles){
     //reserve memory for the triangles
     vectorOfTriangles.reserve(mesh->triangle_count);
+    #ifdef POINTCLOUDS
     cloud->points.reserve(mesh->triangle_count);
+    #endif
 
     //store trangles to a vector
     //will upload a scetch on how the calculation of index is done
@@ -15,7 +20,9 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointClou
         //create a triangle
         Triangle triangle;
         //create an ibj to store coords in it
+        #ifdef POINTCLOUDS
         pcl::PointXYZ center;
+        #endif
 
         /*triangles are described in versices:
         triangle1 = vertix1 vertix2 vertix3
@@ -46,10 +53,18 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointClou
             triangle.z[j] = mesh->vertices[verteces[j] * 3 + 2];
         }
 
+        #ifdef POINTCLOUDS
         //centre of triangle FOR A POINT CLOUD
         center.x = triangle.centre_x = (triangle.x[0] + triangle.x[1] + triangle.x[2]) / 3.0f;
         center.y = triangle.centre_y = (triangle.y[0] + triangle.y[1] + triangle.y[2]) / 3.0f;
         center.z = triangle.centre_z = (triangle.z[0] + triangle.z[1] + triangle.z[2]) / 3.0f; 
+        #endif
+
+        triangle.centreOfTriangle[0] = (triangle.x[0] + triangle.x[1] + triangle.x[2]) / 3.0f;
+        triangle.centreOfTriangle[1] = (triangle.y[0] + triangle.y[1] + triangle.y[2]) / 3.0f;
+        triangle.centreOfTriangle[2] = (triangle.z[0] + triangle.z[1] + triangle.z[2]) / 3.0f; 
+
+        triangle.myIndex = i;
 
         //give each triangle its set of edges
         //so an index that has xyz of a vertex in it
@@ -68,9 +83,9 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointClou
         //centre of an edge line (in case center-to-center is not availiable)
         for (int j = 0; j < 3; j++) {
             int next = (j + 1) % 3;
-            triangle.triangleEdges[j].center[0] = (triangle.x[j] + triangle.x[next]) / 2.0f;
-            triangle.triangleEdges[j].center[1] = (triangle.y[j] + triangle.y[next]) / 2.0f;
-            triangle.triangleEdges[j].center[2] = (triangle.z[j] + triangle.z[next]) / 2.0f;
+            triangle.triangleEdges[j].centreOfEdge[0] = (triangle.x[j] + triangle.x[next]) / 2.0f;
+            triangle.triangleEdges[j].centreOfEdge[1] = (triangle.y[j] + triangle.y[next]) / 2.0f;
+            triangle.triangleEdges[j].centreOfEdge[2] = (triangle.z[j] + triangle.z[next]) / 2.0f;
 
             auto key = std::make_pair(triangle.triangleEdges[j].v1, triangle.triangleEdges[j].v2);
             triangle.findNeighbours(vectorOfTriangles, key, j);
@@ -82,8 +97,10 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointClou
         //add this triangle to our vector
         vectorOfTriangles.push_back(triangle);
 
+        #ifdef POINTCLOUDS
         //store the centre to a point cloud for nearest neighbour usage
         cloud->push_back(center);
+        #endif
     }
     return;
 }
@@ -91,16 +108,17 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointClou
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP){
     int closestTriangle = -1;
     float minDist = 100000;
-    for(unsigned int i = 0; i < mesh->triangle_count; i++){
+    for(unsigned int i = 0; i < vectorOfTriangles.size(); i++){
         float distanceToTriangle = sqrt(
-            pow((vectorOfTriangles[i].centre_x * 0.001f) - currentTCP[0], 2) + 
-            pow((vectorOfTriangles[i].centre_y * 0.001f) - currentTCP[1], 2) + 
-            pow((vectorOfTriangles[i].centre_z * 0.001f) - currentTCP[2], 2)
+            pow((vectorOfTriangles[i].centreOfTriangle[0] * 0.001f) - currentTCP[0], 2) + 
+            pow((vectorOfTriangles[i].centreOfTriangle[1]* 0.001f) - currentTCP[1], 2) + 
+            pow((vectorOfTriangles[i].centreOfTriangle[2] * 0.001f) - currentTCP[2], 2)
         );
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             closestTriangle = i;
         }
     }
+    closestTriangle = vectorOfTriangles[closestTriangle].myIndex;
     return closestTriangle;
 }

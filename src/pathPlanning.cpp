@@ -16,6 +16,7 @@ void init(){
 
 void goHome(){
     auto logger = rclcpp::get_logger("goGome");
+    RCLCPP_WARN(logger, "going home");
 
     //the initial position (right before the tracing)
     std::vector<double> preferred_joints = {
@@ -69,11 +70,27 @@ void getTCPpose(double* currentTCP){
     RCLCPP_WARN(logger, "TCP: %f", currentTCP[1]);
     RCLCPP_WARN(logger, "TCP: %f", currentTCP[2]);
     #endif
+}
 
-    // currentTCP[3] = transform.transform.rotation.x;
-    // currentTCP[4] = transform.transform.rotation.y;
-    // currentTCP[5] = transform.transform.rotation.z;
-    // currentTCP[6] = transform.transform.rotation.w;
+void getTCPorientation(double* TCPorientation){
+    auto logger = rclcpp::get_logger("getTCPorientation");
+    //take a position of tcp
+    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+
+    rclcpp::sleep_for(std::chrono::seconds(1));
+
+    geometry_msgs::msg::TransformStamped transform;
+    transform = tf_buffer->lookupTransform(
+        "base_link",
+        "tool0",
+        tf2::TimePointZero
+    );
+
+    TCPorientation[0] = transform.transform.rotation.x;
+    TCPorientation[1] = transform.transform.rotation.y;
+    TCPorientation[2] = transform.transform.rotation.z;
+    TCPorientation[3] = transform.transform.rotation.w;
 }
 
 bool moveToPoint(geometry_msgs::msg::Pose target_pose){
@@ -105,28 +122,25 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose){
     }
 }
 
-void traceThreeNeighbours(
-    std::vector<Triangle> &vectorOfTriangles, 
-    int previousTriangle, 
-    Triangle& triangleToTrace, 
-    Edge& edgeToPrevTriangle
-){
-    auto logger = rclcpp::get_logger("traceThreeNeighbours");
+geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
+    auto logger = rclcpp::get_logger("targetPose");
 
     geometry_msgs::msg::Pose target_pose;
 
-    double TCPorientation[7] = {0,0,0,0,0,0,0};
-    getTCPpose(TCPorientation);
+    target_pose.position.x = triangle.centreOfTriangle[0] * 0.001f;
+    target_pose.position.y = - triangle.centreOfTriangle[1] * 0.001f + 1.00f;
+    target_pose.position.z = triangle.centreOfTriangle[2] * 0.001f;
 
-    //move to this triangle------------------------------------------------------------------------------------------------------------
-    target_pose.position.x = triangleToTrace.centre_x * 0.001f;
-    target_pose.position.y = triangleToTrace.centre_y * 0.001f + 1.00f;
-    target_pose.position.z = triangleToTrace.centre_z * 0.001f;
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "x : %f", target_pose.position.x);
+    RCLCPP_WARN(logger, "y : %f", target_pose.position.y);
+    RCLCPP_WARN(logger, "z : %f", target_pose.position.z);
+    #endif
 
     tf2::Vector3 normal(
-        triangleToTrace.normal_x,
-        triangleToTrace.normal_y,
-        triangleToTrace.normal_z
+        triangle.normal_x,
+        triangle.normal_y,
+        triangle.normal_z
     );
 
     normal.normalize();
@@ -160,56 +174,47 @@ void traceThreeNeighbours(
     target_pose.orientation.z = q.z();
     target_pose.orientation.w = q.w();
 
+    return target_pose;
+}
+
+void traceNeighbour(
+    Triangle& previousTriangle, 
+    Triangle& triangleToTrace, 
+    Edge& edgeToPrevTriangle
+){
+    auto logger = rclcpp::get_logger("traceThreeNeighbours");
+
+    geometry_msgs::msg::Pose target_pose;
+
+    //move to this triangle------------------------------------------------------------------------------------------------------------
+    target_pose = targetPose(triangleToTrace);
+
     //if center to center failed
     if(moveToPoint(target_pose) == false){
-        //trt going to an edge
-        target_pose.position.x = edgeToPrevTriangle.center[0] * 0.001f;
-        target_pose.position.y = edgeToPrevTriangle.center[1] * 0.001f + 1.00f;
-        target_pose.position.z = edgeToPrevTriangle.center[2] * 0.001f;
+        //try going to an edge
+        target_pose.position.x = edgeToPrevTriangle.centreOfEdge[0] * 0.001f;
+        target_pose.position.y = edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 1.00f;
+        target_pose.position.z = edgeToPrevTriangle.centreOfEdge[2] * 0.001f;
         //use the orientation of the old triangle to avoid collisions
+        double TCPorientation[4] = {0,0,0,0};
+        getTCPorientation(TCPorientation);
         target_pose.orientation.x = TCPorientation[3];
         target_pose.orientation.y = TCPorientation[4];
         target_pose.orientation.z = TCPorientation[5];
         target_pose.orientation.w = TCPorientation[6];
-        //if even edge is unreachable, then the triangles unreachability counter goes up
+        //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
         if(moveToPoint(target_pose) == false){
             triangleToTrace.unreachableCounter++;
+            return;
         }else{
             //if we did go to an edge then we can try to go to the ceter of the next triangle
-            target_pose.position.x = triangleToTrace.centre_x * 0.001f;
-            target_pose.position.y = triangleToTrace.centre_y * 0.001f + 1.00f;
-            target_pose.position.z = triangleToTrace.centre_z * 0.001f;
-            target_pose.orientation.x = q.x();
-            target_pose.orientation.y = q.y();
-            target_pose.orientation.z = q.z();
-            target_pose.orientation.w = q.w();
+            target_pose = targetPose(triangleToTrace);
             if(moveToPoint(target_pose) == false){
-                //if the center is ynreachable then we go back to "initial" triangle
-                target_pose.position.x = vectorOfTriangles[previousTriangle].centre_x * 0.001f;
-                target_pose.position.y = vectorOfTriangles[previousTriangle].centre_y * 0.001f + 1.00f;
-                target_pose.position.z = vectorOfTriangles[previousTriangle].centre_z * 0.001f;
-                target_pose.orientation.x = TCPorientation[3];
-                target_pose.orientation.y = TCPorientation[4];
-                target_pose.orientation.z = TCPorientation[5];
-                target_pose.orientation.w = TCPorientation[6];
+                //if the center is unreachable then we go back to "initial" triangle
+                target_pose = targetPose(previousTriangle);
                 triangleToTrace.unreachableCounter++;
                 moveToPoint(target_pose);
-            }
-        }
-    }
-
-    //trace neghbours------------------------------------------------------------------------------------------------------------------
-    for(int j = 0; j < 3; j++){
-        for(int i = 0; i < 3; i++){
-            if((triangleToTrace.myNeighbours[i] != -1) && //is there is a neighbour
-                (vectorOfTriangles[triangleToTrace.myNeighbours[i]].unreachableCounter < 3) && //and it is not unreachable
-                (!vectorOfTriangles[triangleToTrace.myNeighbours[i]].traced)){ //and it was not traced
-                    traceThreeNeighbours(
-                        vectorOfTriangles, 
-                        triangleToTrace.myIndex, 
-                        vectorOfTriangles[triangleToTrace.myNeighbours[i]], 
-                        triangleToTrace.triangleEdges[i]
-                    ); 
+                return;
             }
         }
     }

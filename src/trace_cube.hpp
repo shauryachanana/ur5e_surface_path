@@ -38,7 +38,7 @@
 #define DEBUGGER
 #define TEMPORARY
 // #define TRIANGLES
-#define POINTCLOUDS
+// #define POINTCLOUDS
 
 extern std::shared_ptr<rclcpp::Node> node;
 
@@ -65,7 +65,7 @@ extern std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
 
 struct Edge {
     int v1, v2 = 0;
-    float center[3] = {0, 0, 0};
+    float centreOfEdge[3] = {0, 0, 0};
 
     void normalizeEdge(int firstCorner, int secondCorner){
         if(secondCorner > firstCorner){
@@ -86,7 +86,7 @@ struct Triangle{
     int z[3] = {0, 0, 0};
 
     //centre of the triangle
-    float centre_x, centre_y, centre_z = 0;
+    float centreOfTriangle[3] = {0,0,0};
     //normal of the triangle
     float normal_x, normal_y, normal_z = 0;
 
@@ -99,6 +99,16 @@ struct Triangle{
     bool traced = false;
 
     int myIndex = 0;
+
+    int getValidNeighbours(){
+        int numbOfNeigh = 0;
+        for(int i = 0; i<3; i++){
+            if(myNeighbours[i] != -1){
+                numbOfNeigh++;
+            }
+        }
+        return numbOfNeigh;
+    }
 
     void calculateTriangleNormal(int index){
         //its an array of x1y1z1x2y2z2x3y3z3...
@@ -132,15 +142,19 @@ struct Triangle{
 //      add edge detection using element of Tringle struct
 //      shoud clean Tringle struct
 
-void traceThreeNeighbours(
-    std::vector<Triangle> &vectorOfTriangles, 
-    int previousTriangle, 
+void traceNeighbour(
+    Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
     Edge& edgeToPrevTriangle
 );
+#ifdef POINTCLOUDS
 void triangleExtraction(
     std::vector<Triangle> &vectorOfTriangles, 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
+);
+#endif
+void triangleExtraction(
+    std::vector<Triangle> &vectorOfTriangles
 );
 void getClosestPoint(
     pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, 
@@ -150,6 +164,8 @@ void getClosestPoint(
 void init();
 void goHome();
 void getTCPpose(double* currentTCP);
+void getTCPorientation(double* TCPorientation);
+geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
 bool moveToPoint(geometry_msgs::msg::Pose target_pose);
 
