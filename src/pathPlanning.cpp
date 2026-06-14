@@ -220,3 +220,33 @@ void traceNeighbour(
     }
     return;
 }
+
+AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTriangles, int &closestTriangleIndex){
+    auto logger = rclcpp::get_logger("attemptToReachNextClosest");
+
+    double currentTCP[3] = {0, 0, 0};
+    getTCPpose(currentTCP);
+    int closestTriangle = 0;
+    std::size_t size = vectorOfDesidedTriangles.size();
+
+    for(std::size_t i = 0; i < size; i++){
+        //look for the closest in a given vector
+        closestTriangle = getClosestTriangle(vectorOfDesidedTriangles, currentTCP);
+
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "attempt to reach index %d", vectorOfDesidedTriangles[closestTriangle].myIndex);
+        #endif
+
+        if(moveToPoint(targetPose(vectorOfDesidedTriangles[closestTriangle]))){
+            //if the closest triangle was reached - exit the function
+            closestTriangleIndex = vectorOfDesidedTriangles[closestTriangle].myIndex;
+            return AttemptToReach::TRIANGLE_REACHED;
+        }else{
+            //increase a counter for unreachability
+            vectorOfDesidedTriangles[closestTriangle].unreachableCounter++;
+            //otherwise - update a vector and run getClosest again
+            vectorOfDesidedTriangles.erase(vectorOfDesidedTriangles.begin() + closestTriangle);
+        }
+    }
+    return AttemptToReach::EMPTY_VECTOR;
+}

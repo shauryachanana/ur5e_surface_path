@@ -33,6 +33,7 @@ int main(int argc, char** argv){
     std::vector<Triangle> vectorOfTriangles;
 
     triangleExtraction(vectorOfTriangles);
+    std::vector<bool> traced = std::vector<bool>(vectorOfTriangles.size(), false);
 
     #ifdef POINTCLOUDS
     //create a point cloud
@@ -42,6 +43,7 @@ int main(int argc, char** argv){
     //centers go to the point cloud obj for easy nearest neighbour calculation
     //vectorOfTriangles is used to store the normal vectors of the triangles to orient the TCP
     triangleExtraction(vectorOfTriangles, cloud);
+    std::vector<bool> traced = std::vector<int>(vectorOfTriangles.size(), false);
 
     pcl::KdTreeFLANN<pcl::PointXYZ> kdTree;
 
@@ -66,64 +68,83 @@ int main(int argc, char** argv){
 
     /*========FIND TRIANGLE WITH THE LEAST AMOUNT OF EDGES=========*/
 
+    //two arrays to store min neighbour triangles
     std::vector<Triangle> singleNeighbpurTrangles;
-    std::vector<Triangle> doubleNeighbpurTrangles;
-    int closestTriangle = 0;
+    std::vector<Triangle> doubleNeighbourTriangles;
+    int chosenVector = 0;
 
     for(unsigned int i = 0; i < vectorOfTriangles.size(); i++){
-        if(vectorOfTriangles[i].getValidNeighbours() == 1){
+        if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 1){
+            //use one if a truiangle only has one neighbour (prefferable)
             singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
-        }else if(vectorOfTriangles[i].getValidNeighbours() == 2){
-            doubleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
+        }else if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 2){
+            //for 2 neighbours
+            doubleNeighbourTriangles.push_back(vectorOfTriangles[i]);
         }
-
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "x of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[0]);
-        RCLCPP_WARN(logger, "y of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[1]);
-        RCLCPP_WARN(logger, "z of : %d, %f", i, vectorOfTriangles[i].centreOfTriangle[2]);
-        #endif
+        //if there are no < 2 neighbours triangles we use vectorOfTriangles
     }
-
-    //compare the distances to the triangles with the least amount of neighbours 
-    double currentTCP[3] = {0, 0, 0};
-    getTCPpose(currentTCP);
     
+    //depending on how full the arrays are use them to determine the initial one
     if(singleNeighbpurTrangles.size() != 0){
         //if there are triangles with a single neighbour
-        closestTriangle = getClosestTriangle(singleNeighbpurTrangles, currentTCP);
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "closest single neighbour: %d", closestTriangle);
-        #endif
-    }else if(doubleNeighbpurTrangles.size() != 0){
+        chosenVector = 0;
+    }else if(doubleNeighbourTriangles.size() != 0){
         //if there are no triangles with a single neighbour but with two neighbours
-        closestTriangle = getClosestTriangle(doubleNeighbpurTrangles, currentTCP);
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "closest double neighbour: %d", closestTriangle);
-        #endif
+        chosenVector = 1;
     }else{
         //if there are only triangles with 3 neighbpurs:
-        closestTriangle = getClosestTriangle(vectorOfTriangles, currentTCP);
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "closest tripple neighbour: %d", closestTriangle);
-        #endif
-    }
-
-    //try to reach the triangle with the least amout of neighbours:
-    target_pose = targetPose(vectorOfTriangles[closestTriangle]);
-
-    if(!moveToPoint(target_pose)){
-        #ifdef DEBUGGER
-        RCLCPP_ERROR(logger, "first triangle failed!");
-        #endif
-    }else{
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "first triangle success!");
-        #endif
+        chosenVector = 2;
     }
 
     /*=============================================================*/
 
     /*=================GET TO THE CLOSEST TRIANGLE=================*/
+
+    #ifndef POINTCLOUDS
+    
+    AttemptToReach initialTriangle = AttemptToReach::EMPTY_VECTOR;
+    int closestTriangleIndex = 0;
+    while((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector < 3)){
+        switch(chosenVector){
+            case 0:
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "attempt in singleNeighbpurTrangles");
+            #endif
+            initialTriangle = attemptToReachNextClosest(singleNeighbpurTrangles, closestTriangleIndex);
+            chosenVector++;
+            break;
+
+            case 1:
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "attempt in doubleNeighbourTriangles");
+            #endif
+            initialTriangle = attemptToReachNextClosest(doubleNeighbourTriangles, closestTriangleIndex);
+            chosenVector++;
+            break;
+
+            case 2:
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "attempt in vectorOfTriangles");
+            #endif
+            initialTriangle = attemptToReachNextClosest(vectorOfTriangles, closestTriangleIndex);
+            chosenVector++;
+            break;
+        }
+    }
+    if((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector > 3)){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "there are no reachable triangles!");
+        #endif
+    }else if(initialTriangle == AttemptToReach::TRIANGLE_REACHED){
+        vectorOfTriangles[closestTriangleIndex].traced = true;
+        traced[closestTriangleIndex] = true;
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "reached initial triangle, %d!", closestTriangleIndex);
+        #endif
+    }
+
+    #endif
+
     #ifdef POINTCLOUDS
     //go  to the closest triangle
     getClosestPoint(kdTree, pointIdxKNNSearch, pointKNNSquaredDistance);
@@ -197,23 +218,31 @@ int main(int argc, char** argv){
 
     /*=====================START THE OPERATION=====================*/
 
-    // for(int i = 0; i < 3; i++){
-    //     int nextTriangleIndex = vectorOfTriangles[currentTriangleIndex].myNeighbours[i];
+    int neighboursCount  = INT_MAX;
+    int bestCandidateIndex = -1;
+    double currentTCP[3] = {0, 0, 0};
+    getTCPpose(currentTCP);
+    for(std::size_t i = 0; i < vectorOfTriangles[closestTriangleIndex].myNeighbours.size(); i++){
+        int neighbourIndex = vectorOfTriangles[closestTriangleIndex].myNeighbours[i];
+        if((neighbourIndex != -1) && (!vectorOfTriangles[neighbourIndex].traced)){
+            //check for the amount of availiable neighbours
+            int count = vectorOfTriangles[neighbourIndex].getValidNeighbours(traced, vectorOfTriangles);
+            if(count < neighboursCount){
+                neighboursCount = count;
+                bestCandidateIndex = neighbourIndex;
+            }else if(count == neighboursCount){
+                float distance01 = distanceToTCP(vectorOfTriangles[neighbourIndex], currentTCP);
+                float distance02 = distanceToTCP(vectorOfTriangles[bestCandidateIndex], currentTCP);
 
-    //     if((vectorOfTriangles[nextTriangleIndex].myNeighbours[i] != -1) 
-    //         && //is there is a neighbour
-    //         (vectorOfTriangles[nextTriangleIndex].unreachableCounter < 3) 
-    //         && //and it is not unreachable
-    //         (!vectorOfTriangles[nextTriangleIndex].traced)){ //and it was not traced
-
-    //         traceNeighbour(
-    //             vectorOfTriangles, 
-    //             vectorOfTriangles[currentTriangleIndex], 
-    //             vectorOfTriangles[nextTriangleIndex], 
-    //             vectorOfTriangles[currentTriangleIndex].triangleEdges[i]
-    //         );
-    //     }
-    // }
+                if(distance01 < distance02){
+                    bestCandidateIndex = neighbourIndex;
+                }
+            }
+        }
+    }
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "index of next triangle: %d", bestCandidateIndex);
+    #endif
 
     /*=============================================================*/
 

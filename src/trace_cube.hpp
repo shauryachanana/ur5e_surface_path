@@ -63,11 +63,17 @@ struct PairHash {
 extern std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
 // extern std::unordered_map<std::pair<int,int>, int> edgeDetection;
 
+enum class AttemptToReach{
+    TRIANGLE_REACHED,
+    TRIANGLE_FAILED,
+    EMPTY_VECTOR
+};
+
 struct Edge {
     int v1, v2 = 0;
     float centreOfEdge[3] = {0, 0, 0};
 
-    void normalizeEdge(int firstCorner, int secondCorner){
+    void normalizeEdge(const int firstCorner, const int secondCorner){
         if(secondCorner > firstCorner){
             v1 = secondCorner;
             v2 = firstCorner;
@@ -93,31 +99,31 @@ struct Triangle{
     //three pair of xyz = edges
     Edge triangleEdges[3];
     //neighbours
-    int myNeighbours[3] = {-1, -1, -1};
+    std::vector<int> myNeighbours = std::vector<int>(3, -1);
     //vars to not trace triangle multiple times
     int unreachableCounter = 0;
     bool traced = false;
 
     int myIndex = 0;
 
-    int getValidNeighbours(){
+    int getValidNeighbours(const std::vector<bool> tracedTriangles, const std::vector<Triangle>& vectorOfTriangles){
         int numbOfNeigh = 0;
         for(int i = 0; i<3; i++){
-            if(myNeighbours[i] != -1){
+            if((myNeighbours[i] != -1) && (!tracedTriangles[myNeighbours[i]]) && (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
                 numbOfNeigh++;
             }
         }
         return numbOfNeigh;
     }
 
-    void calculateTriangleNormal(int index){
+    void calculateTriangleNormal(const int index){
         //its an array of x1y1z1x2y2z2x3y3z3...
         normal_x = mesh->triangle_normals[index*3 + 0];
         normal_y = mesh->triangle_normals[index*3 + 1];
         normal_z = mesh->triangle_normals[index*3 + 2];
     }
 
-    void findNeighbours(std::vector<Triangle>& vectorOfTriangles, std::pair<int, int> key, int  arrayIndex){
+    void findNeighbours(std::vector<Triangle>& vectorOfTriangles, const std::pair<int, int> key, const int  arrayIndex){
         auto value = edgeDetection.find(key);
         if(value == edgeDetection.end()){
             myNeighbours[arrayIndex] = -1;
@@ -137,10 +143,6 @@ struct Triangle{
         return;
     }
 };
-
-//TODO: add a different algorythm to adding "traced" to triangles
-//      add edge detection using element of Tringle struct
-//      shoud clean Tringle struct
 
 void traceNeighbour(
     Triangle& previousTriangle, 
@@ -165,8 +167,10 @@ void init();
 void goHome();
 void getTCPpose(double* currentTCP);
 void getTCPorientation(double* TCPorientation);
+AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTriangles, int &closestTriangleIndex);
 geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
+float distanceToTCP(Triangle &triangle, double* currentTCP);
 bool moveToPoint(geometry_msgs::msg::Pose target_pose);
 
 #endif

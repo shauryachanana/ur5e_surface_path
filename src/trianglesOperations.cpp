@@ -109,16 +109,20 @@ int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* current
     int closestTriangle = -1;
     float minDist = 100000;
     for(unsigned int i = 0; i < vectorOfTriangles.size(); i++){
-        float distanceToTriangle = sqrt(
-            pow((vectorOfTriangles[i].centreOfTriangle[0] * 0.001f) - currentTCP[0], 2) + 
-            pow((vectorOfTriangles[i].centreOfTriangle[1]* 0.001f) - currentTCP[1], 2) + 
-            pow((vectorOfTriangles[i].centreOfTriangle[2] * 0.001f) - currentTCP[2], 2)
-        );
+        float distanceToTriangle = distanceToTCP(vectorOfTriangles[i], currentTCP);
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             closestTriangle = i;
         }
     }
-    closestTriangle = vectorOfTriangles[closestTriangle].myIndex;
     return closestTriangle;
+}
+
+float distanceToTCP(Triangle &triangle, double* currentTCP){
+    float distanceToTCP = sqrt(
+        pow((triangle.centreOfTriangle[0] * 0.001f) - currentTCP[0], 2) + 
+        pow((triangle.centreOfTriangle[1]* 0.001f) - currentTCP[1], 2) + 
+        pow((triangle.centreOfTriangle[2] * 0.001f) - currentTCP[2], 2)
+    );
+    return distanceToTCP;
 }
