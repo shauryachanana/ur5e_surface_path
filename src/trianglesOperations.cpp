@@ -1,17 +1,22 @@
 #include "trace_cube.hpp"
 
-void calculateTriangleNormal(Triangle& triangle, int index){
-    //its an array of x1y1z1x2y2z2x3y3z3...
-    triangle.normal_x = mesh->triangle_normals[index*3 + 0];
-    triangle.normal_y = mesh->triangle_normals[index*3 + 1];
-    triangle.normal_z = mesh->triangle_normals[index*3 + 2];
-}
+// std::unordered_map<std::pair<int,int>, int> edgeDetection;
+std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
 
-void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, std::vector<float> &ZofTriang){
+void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud){
+    //reserve memory for the triangles
+    vectorOfTriangles.reserve(mesh->triangle_count);
+    cloud->points.reserve(mesh->triangle_count);
 
     //store trangles to a vector
     //will upload a scetch on how the calculation of index is done
-    for(unsigned int i = 0; i< mesh->triangle_count; i++){
+    for(size_t i = 0; i< mesh->triangle_count; i++){
+
+        //create a triangle
+        Triangle triangle;
+        //create an ibj to store coords in it
+        pcl::PointXYZ center;
+
         /*triangles are described in versices:
         triangle1 = vertix1 vertix2 vertix3
         so we calculate index of vertices of each triangle here:
@@ -20,43 +25,66 @@ void triangleExtraction(std::vector<Triangle> &vectorOfTriangles, std::vector<fl
         int secondVertexOfTriangle = mesh->triangles[i*3 + 1];
         int thirdVertexOfTriangle = mesh->triangles[i*3 + 2];
 
-        //create a triangle
-        Triangle triangle;
+        int verteces[3] = {firstVertexOfTriangle, secondVertexOfTriangle, thirdVertexOfTriangle};
+
+        /*
+        we store all the edges in a map
+        if the edge is the same in the future, the map will be rewritten (if 1 had the same edge as 2, 2 will be stored in a map)
+        then we call a funtion to assign every truengle it's neighbours
+        triangle 1 with list of Edges stored in it, will ask map using an Edge as a key(3 times), will see that 2 has the same Edge,
+        triangle 1 will have "2" stored in its neighbours list and triangle 2 will store "1" automatically
+
+        later when we start an operation all the triangles will have 3 neighbpurs and will be able to detect the closest triangles
+        using this map (give ma  the edge, see the neighour, check if reachable/traced and then trace)
+        */
 
         /*now we need to get actual xyz of each point*/
         //first vertex
-        triangle.x0 = mesh->vertices[firstVertexOfTriangle * 3 + 0];
-        triangle.y0 = mesh->vertices[firstVertexOfTriangle * 3 + 1];
-        triangle.z0 = mesh->vertices[firstVertexOfTriangle * 3 + 2];
+        for(int j = 0; j<3; j++){
+            triangle.x[j] = mesh->vertices[verteces[j] * 3 + 0];
+            triangle.y[j] = mesh->vertices[verteces[j] * 3 + 1];
+            triangle.z[j] = mesh->vertices[verteces[j] * 3 + 2];
+        }
 
-        //second vertex
-        triangle.x1 = mesh->vertices[secondVertexOfTriangle * 3 + 0];
-        triangle.y1 = mesh->vertices[secondVertexOfTriangle * 3 + 1];
-        triangle.z1 = mesh->vertices[secondVertexOfTriangle * 3 + 2];
+        //centre of triangle FOR A POINT CLOUD
+        center.x = triangle.centre_x = (triangle.x[0] + triangle.x[1] + triangle.x[2]) / 3.0f;
+        center.y = triangle.centre_y = (triangle.y[0] + triangle.y[1] + triangle.y[2]) / 3.0f;
+        center.z = triangle.centre_z = (triangle.z[0] + triangle.z[1] + triangle.z[2]) / 3.0f; 
 
-        //third vertex
-        triangle.x2 = mesh->vertices[thirdVertexOfTriangle * 3 + 0];
-        triangle.y2 = mesh->vertices[thirdVertexOfTriangle * 3 + 1];
-        triangle.z2 = mesh->vertices[thirdVertexOfTriangle * 3 + 2];
+        //give each triangle its set of edges
+        //so an index that has xyz of a vertex in it
+        Edge e1;
+        e1.normalizeEdge(firstVertexOfTriangle, secondVertexOfTriangle);
+        Edge e2;
+        e2.normalizeEdge(secondVertexOfTriangle, thirdVertexOfTriangle);
+        Edge e3;
+        e3.normalizeEdge(firstVertexOfTriangle, thirdVertexOfTriangle);
 
-        //centre of triangle
-        triangle.centre_x = (triangle.x0 + triangle.x1 + triangle.x2) / 3.0f;
-        triangle.centre_y = (triangle.y0 + triangle.y1 + triangle.y2) / 3.0f;
-        triangle.centre_z = (triangle.z0 + triangle.z1 + triangle.z2) / 3.0f;
+        //store triangle edges in triangles
+        triangle.triangleEdges[0] = e1;
+        triangle.triangleEdges[1] = e2;
+        triangle.triangleEdges[2] = e3;
+
+        //centre of an edge line (in case center-to-center is not availiable)
+        for (int j = 0; j < 3; j++) {
+            int next = (j + 1) % 3;
+            triangle.triangleEdges[j].center[0] = (triangle.x[j] + triangle.x[next]) / 2.0f;
+            triangle.triangleEdges[j].center[1] = (triangle.y[j] + triangle.y[next]) / 2.0f;
+            triangle.triangleEdges[j].center[2] = (triangle.z[j] + triangle.z[next]) / 2.0f;
+
+            auto key = std::make_pair(triangle.triangleEdges[j].v1, triangle.triangleEdges[j].v2);
+            triangle.findNeighbours(vectorOfTriangles, key, j);
+        }
 
         //store the orientation
-        calculateTriangleNormal(triangle, i);
-        
-        //add z to a vector
-        ZofTriang.push_back(triangle.centre_z);
+        triangle.calculateTriangleNormal(i);
 
         //add this triangle to our vector
         vectorOfTriangles.push_back(triangle);
+
+        //store the centre to a point cloud for nearest neighbour usage
+        cloud->push_back(center);
     }
-
-    // int highestTriangIndex = *max_element(ZofTriang.begin(), ZofTriang.end());
-
-    // return highestTriangIndex;
     return;
 }
 

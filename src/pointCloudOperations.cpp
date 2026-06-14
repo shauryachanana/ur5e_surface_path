@@ -10,6 +10,7 @@ void getClosestPoint(pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, std::vector<int>& 
     searchPoint.y = (float)currentTCP[1];
     searchPoint.z = (float)currentTCP[2];
 
-    kdTree.nearestKSearch(searchPoint, 1, pointIdxKNNSearch, pointKNNSquaredDistance);
+    kdTree.nearestKSearch(searchPoint, 3, pointIdxKNNSearch, pointKNNSquaredDistance);
+    return;
 }
 

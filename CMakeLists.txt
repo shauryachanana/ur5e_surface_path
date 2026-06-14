@@ -16,11 +16,17 @@ find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(geometric_shapes REQUIRED)
 
+find_package(tf2_ros REQUIRED)
+find_package(PCL REQUIRED)
+
 add_executable(hello_moveit src/hello_moveit.cpp)
-add_executable(trace_cube 
-              src/trace_cube.cpp
-              src/trianglesOperations.cpp
-              src/pathPlanning.cpp)
+add_executable(
+  trace_cube 
+  src/trace_cube.cpp
+  src/trianglesOperations.cpp
+  src/pathPlanning.cpp
+  src/pointCloudOperations.cpp
+)
 
 set(dependencies
   rclcpp
@@ -32,9 +38,21 @@ set(dependencies
   tf2_geometry_msgs
   tf2_eigen
   tf2
+  tf2_ros
 )
+
 ament_target_dependencies(hello_moveit ${dependencies})
 ament_target_dependencies(trace_cube ${dependencies})
+
+target_link_libraries(trace_cube
+  ${PCL_LIBRARIES}
+)
+
+target_include_directories(trace_cube PUBLIC
+  ${PCL_INCLUDE_DIRS}
+)
+
+add_definitions(${PCL_DEFINITIONS})
 
 
 install(TARGETS 
