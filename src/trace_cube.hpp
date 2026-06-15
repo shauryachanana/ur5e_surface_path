@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vector>
+#include <stack>
 #include <math.h>
 #include <algorithm>
 
@@ -34,6 +35,7 @@
 #include <unordered_map>
 #include <utility>
 #include <functional>
+#include <numeric>
 
 #define DEBUGGER
 #define TEMPORARY
@@ -50,6 +52,8 @@ extern shapes::Mesh* mesh;
 using moveit::planning_interface::MoveGroupInterface;
 extern std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
+extern std::vector<bool> traced;
+
 //will be used to detect edges
 //we store 2 indeces of the triange corners (edge of a triangle) as a key and then assign it triangle's index
 struct PairHash {
@@ -61,13 +65,32 @@ struct PairHash {
 };
 
 extern std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
-// extern std::unordered_map<std::pair<int,int>, int> edgeDetection;
 
 enum class AttemptToReach{
     TRIANGLE_REACHED,
     TRIANGLE_FAILED,
+    CENTER_TO_EDGE_FAILED,
+    EDGE_TO_CENTER_FAILED,
     EMPTY_VECTOR
 };
+
+enum class movementDirection{
+    FORWARD,
+    BACKWARDS
+};
+
+enum class waypointType{
+    TRIANGLE,
+    EDGE
+};
+
+struct Waypoint {
+    geometry_msgs::msg::Pose pose;
+    waypointType typeOfWaypoint;
+    int triangleIndex;
+};
+
+extern std::stack<Waypoint> pathHistory;
 
 struct Edge {
     int v1, v2 = 0;
@@ -106,10 +129,11 @@ struct Triangle{
 
     int myIndex = 0;
 
-    int getValidNeighbours(const std::vector<bool> tracedTriangles, const std::vector<Triangle>& vectorOfTriangles){
+    int getValidNeighbours(std::vector<bool> &tracedTriangles, const std::vector<Triangle>& vectorOfTriangles){
         int numbOfNeigh = 0;
+        tracedTriangles[0] = tracedTriangles[0];
         for(int i = 0; i<3; i++){
-            if((myNeighbours[i] != -1) && (!tracedTriangles[myNeighbours[i]]) && (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
+            if((myNeighbours[i] != -1) && (vectorOfTriangles[myNeighbours[i]].traced == false) && (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
                 numbOfNeigh++;
             }
         }
@@ -144,7 +168,7 @@ struct Triangle{
     }
 };
 
-void traceNeighbour(
+AttemptToReach traceNeighbour(
     Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
     Edge& edgeToPrevTriangle
@@ -163,6 +187,11 @@ void getClosestPoint(
     std::vector<int>& pointIdxKNNSearch, 
     std::vector<float>& pointKNNSquaredDistance
 );
+int startOperation(
+    std::vector<Triangle> vectorOfTriangles, 
+    std::vector<bool> &traced, 
+    Triangle triangleToTrace
+);
 void init();
 void goHome();
 void getTCPpose(double* currentTCP);
@@ -171,6 +200,8 @@ AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTr
 geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
 float distanceToTCP(Triangle &triangle, double* currentTCP);
-bool moveToPoint(geometry_msgs::msg::Pose target_pose);
+bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE);
+// std::vector<int> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
+std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
 
 #endif

@@ -1,5 +1,8 @@
 #include "trace_cube.hpp"
 
+std::stack<Waypoint> pathHistory;
+extern std::vector<bool> traced;
+
 void init(){
     //set id from "Context" tab sed desired planning library (open motion plannin library)
     gripper_group_interface->setPlanningPipelineId("ompl");
@@ -93,7 +96,7 @@ void getTCPorientation(double* TCPorientation){
     TCPorientation[3] = transform.transform.rotation.w;
 }
 
-bool moveToPoint(geometry_msgs::msg::Pose target_pose){
+bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir, waypointType waypoint){
     auto logger = rclcpp::get_logger("moveToPoint");
 
     moveit_msgs::msg::RobotTrajectory trajectory;
@@ -113,6 +116,10 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose){
         cartesian_plan.trajectory = trajectory;
         //now we can and do 
         gripper_group_interface->execute(cartesian_plan);
+        if(movementDir == movementDirection::FORWARD){
+            Waypoint newWaypoint = {target_pose, waypoint, triangleIndex};
+            pathHistory.push(newWaypoint);
+        }
         target_poses.pop_back();
         return true;
     }else {
@@ -131,7 +138,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     target_pose.position.y = - triangle.centreOfTriangle[1] * 0.001f + 1.00f;
     target_pose.position.z = triangle.centreOfTriangle[2] * 0.001f;
 
-    #ifdef DEBUGGER
+    #ifndef DEBUGGER
     RCLCPP_WARN(logger, "x : %f", target_pose.position.x);
     RCLCPP_WARN(logger, "y : %f", target_pose.position.y);
     RCLCPP_WARN(logger, "z : %f", target_pose.position.z);
@@ -177,7 +184,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     return target_pose;
 }
 
-void traceNeighbour(
+AttemptToReach traceNeighbour(
     Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
     Edge& edgeToPrevTriangle
@@ -185,68 +192,250 @@ void traceNeighbour(
     auto logger = rclcpp::get_logger("traceThreeNeighbours");
 
     geometry_msgs::msg::Pose target_pose;
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "attemppt to go to: %d", triangleToTrace.myIndex);
+    #endif
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
-    target_pose = targetPose(triangleToTrace);
 
     //if center to center failed
-    if(moveToPoint(target_pose) == false){
+    if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "failed to go straight");
+        #endif
         //try going to an edge
         target_pose.position.x = edgeToPrevTriangle.centreOfEdge[0] * 0.001f;
-        target_pose.position.y = edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 1.00f;
+        target_pose.position.y = - edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 1.00f;
         target_pose.position.z = edgeToPrevTriangle.centreOfEdge[2] * 0.001f;
         //use the orientation of the old triangle to avoid collisions
         double TCPorientation[4] = {0,0,0,0};
         getTCPorientation(TCPorientation);
-        target_pose.orientation.x = TCPorientation[3];
-        target_pose.orientation.y = TCPorientation[4];
-        target_pose.orientation.z = TCPorientation[5];
-        target_pose.orientation.w = TCPorientation[6];
+        target_pose.orientation.x = TCPorientation[0];
+        target_pose.orientation.y = TCPorientation[1];
+        target_pose.orientation.z = TCPorientation[2];
+        target_pose.orientation.w = TCPorientation[3];
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "x y z of edge: %f, %f, %f", target_pose.position.x, target_pose.position.y, target_pose.position.z);
+        RCLCPP_WARN(logger, "orientation of edge: %f, %f, %f, %f", target_pose.orientation.x, target_pose.orientation.y, target_pose.orientation.z, target_pose.orientation.w);
+        #endif
         //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
-        if(moveToPoint(target_pose) == false){
+        if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "edge failed too");
+            #endif
             triangleToTrace.unreachableCounter++;
-            return;
+            return AttemptToReach::CENTER_TO_EDGE_FAILED;
         }else{
             //if we did go to an edge then we can try to go to the ceter of the next triangle
-            target_pose = targetPose(triangleToTrace);
-            if(moveToPoint(target_pose) == false){
+            if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
+                #ifdef DEBUGGER
+                RCLCPP_WARN(logger, "edge to center failed");
+                #endif
                 //if the center is unreachable then we go back to "initial" triangle
-                target_pose = targetPose(previousTriangle);
                 triangleToTrace.unreachableCounter++;
-                moveToPoint(target_pose);
-                return;
+                //delete an edge waypoint
+                pathHistory.pop();
+                moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
+                return AttemptToReach::EDGE_TO_CENTER_FAILED;
+            }else{
+                #ifdef DEBUGGER
+                RCLCPP_WARN(logger, "edge to center success");
+                #endif
+                triangleToTrace.traced = true;
+                traced[triangleToTrace.myIndex] = true;
+                return AttemptToReach::TRIANGLE_REACHED;
             }
         }
+    }else{
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "straight success");
+        #endif
+        triangleToTrace.traced = true;
+        traced[triangleToTrace.myIndex] = true;
+        return AttemptToReach::TRIANGLE_REACHED;
     }
-    return;
 }
 
-AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTriangles, int &closestTriangleIndex){
+AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesiredTriangles, int &closestTriangleIndex){
     auto logger = rclcpp::get_logger("attemptToReachNextClosest");
 
     double currentTCP[3] = {0, 0, 0};
     getTCPpose(currentTCP);
     int closestTriangle = 0;
-    std::size_t size = vectorOfDesidedTriangles.size();
+    std::size_t size = vectorOfDesiredTriangles.size();
 
     for(std::size_t i = 0; i < size; i++){
         //look for the closest in a given vector
-        closestTriangle = getClosestTriangle(vectorOfDesidedTriangles, currentTCP);
+        closestTriangle = getClosestTriangle(vectorOfDesiredTriangles, currentTCP);
 
         #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "attempt to reach index %d", vectorOfDesidedTriangles[closestTriangle].myIndex);
+        RCLCPP_WARN(logger, "attempt to reach index %d", vectorOfDesiredTriangles[closestTriangle].myIndex);
         #endif
 
-        if(moveToPoint(targetPose(vectorOfDesidedTriangles[closestTriangle]))){
+        if(moveToPoint(targetPose(vectorOfDesiredTriangles[closestTriangle]), vectorOfDesiredTriangles[closestTriangle].myIndex)){
             //if the closest triangle was reached - exit the function
-            closestTriangleIndex = vectorOfDesidedTriangles[closestTriangle].myIndex;
+            closestTriangleIndex = vectorOfDesiredTriangles[closestTriangle].myIndex;
             return AttemptToReach::TRIANGLE_REACHED;
         }else{
             //increase a counter for unreachability
-            vectorOfDesidedTriangles[closestTriangle].unreachableCounter++;
+            vectorOfDesiredTriangles[closestTriangle].unreachableCounter++;
             //otherwise - update a vector and run getClosest again
-            vectorOfDesidedTriangles.erase(vectorOfDesidedTriangles.begin() + closestTriangle);
+            vectorOfDesiredTriangles.erase(vectorOfDesiredTriangles.begin() + closestTriangle);
         }
     }
     return AttemptToReach::EMPTY_VECTOR;
 }
+
+std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace){
+    auto logger = rclcpp::get_logger("triangleWithLeastNeighbours");
+
+    double currentTCP[3] = {0, 0, 0};
+    getTCPpose(currentTCP);
+
+    std::vector<int> validNeighbours;
+    std::vector<int> edgeIndices;
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "validNeighbours size before sort: %d", (int)validNeighbours.size());
+    RCLCPP_WARN(logger, "edgeIndices size before sort: %d", (int)edgeIndices.size());
+    #endif
+
+    for(std::size_t i = 0; i < triangleToTrace.myNeighbours.size(); i++){
+        int neighbourIndex = triangleToTrace.myNeighbours[i];
+        //if the value stored in an array is a valid one and if the triangles stored was not traced
+        if((neighbourIndex != -1) && (!vectorOfTriangles[neighbourIndex].traced)){
+            //valuyes from an array
+            validNeighbours.push_back(neighbourIndex);
+            //the position of this value
+            edgeIndices.push_back(i);
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "stored triangle index: %d", neighbourIndex);
+            #endif
+        }
+    }
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "validNeighbours size after sort: %d", (int)validNeighbours.size());
+    RCLCPP_WARN(logger, "edgeIndices size after sort: %d", (int)edgeIndices.size());
+    #endif
+
+    //helper vector
+    std::vector<int> order(validNeighbours.size());
+    std::iota(order.begin(), order.end(), 0);
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "validNeighbours : %d, %d, %d, size: %d", validNeighbours[0], validNeighbours[1], validNeighbours[2], (int)validNeighbours.size());
+    RCLCPP_WARN(logger, "edgeIndices: %d, %d, %d, size: %d", edgeIndices[0], edgeIndices[1], edgeIndices[2], (int)edgeIndices.size());
+    RCLCPP_WARN(logger, "order: %d, %d, %d, size: %d", order[0], order[1], order[2], (int)order.size());
+    #endif
+
+    std::sort(order.begin(), order.end(), [&](int a, int b){
+        int countA = vectorOfTriangles[validNeighbours[a]].getValidNeighbours(traced, vectorOfTriangles);
+        int countB = vectorOfTriangles[validNeighbours[b]].getValidNeighbours(traced, vectorOfTriangles);
+        if(countA != countB){
+            return countA < countB;
+        }else{
+            return distanceToTCP(vectorOfTriangles[validNeighbours[a]], currentTCP) < 
+                   distanceToTCP(vectorOfTriangles[validNeighbours[b]], currentTCP);
+        }
+    });
+
+    //reorder both vectors according to sort result
+    std::vector<int> sortedNeighbours;
+    std::vector<int> sortedEdgeIndices;
+    for(int i : order){
+        sortedNeighbours.push_back(validNeighbours[i]);
+        sortedEdgeIndices.push_back(edgeIndices[i]);
+    }
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "validNeighbours : %d, %d, %d", validNeighbours[0], validNeighbours[1], validNeighbours[2]);
+    RCLCPP_WARN(logger, "edgeIndices: %d, %d, %d", edgeIndices[0], edgeIndices[1], edgeIndices[2]);
+    RCLCPP_WARN(logger, "order: %d, %d, %d", order[0], order[1], order[2]);
+    #endif
+
+    return {sortedNeighbours, sortedEdgeIndices};
+}
+
+int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &traced, Triangle currentTriangle){
+    auto logger = rclcpp::get_logger("startOperation");
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "im here: %d", currentTriangle.myIndex);
+    #endif
+
+    int nextToTraceIndex = 0;
+    auto result = triangleWithLeastNeighbours(vectorOfTriangles, traced, currentTriangle);
+
+    std::vector<int> sortedNeighbours = result.first;
+    std::vector<int> sortedEdges = result.second;
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "sortedNeighbours size: %d", (int)sortedNeighbours.size());
+    #endif
+
+    int neighbourNumber = 0;
+    int faildeAttempts = 0;
+    AttemptToReach neighbourReachAttempt;
+    if(!sortedNeighbours.empty() && !sortedEdges.empty()){
+        neighbourReachAttempt = traceNeighbour(currentTriangle, 
+                                                vectorOfTriangles[sortedNeighbours[neighbourNumber]], 
+                                                currentTriangle.triangleEdges[sortedNeighbours[neighbourNumber]]);
+
+        neighbourNumber++;
+        faildeAttempts++;
+        while((neighbourReachAttempt != AttemptToReach::TRIANGLE_REACHED) && (faildeAttempts < (int)sortedNeighbours.size()) - 1){
+            neighbourNumber++;
+            faildeAttempts++;
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "goint for : %d", sortedNeighbours[neighbourNumber]);
+            #endif
+            if(sortedNeighbours[neighbourNumber] != currentTriangle.myIndex){
+                neighbourReachAttempt = traceNeighbour(currentTriangle, 
+                                                        vectorOfTriangles[sortedNeighbours[neighbourNumber]], 
+                                                        currentTriangle.triangleEdges[sortedNeighbours[neighbourNumber]]);
+            }
+        }
+    }else{
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "empty vectors");
+        #endif
+        pathHistory.pop();
+        if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+            pathHistory.pop();
+        }
+        //go to the last successful triangle
+        moveToPoint(pathHistory.top().pose, pathHistory.top().triangleIndex, movementDirection::BACKWARDS);
+        nextToTraceIndex = pathHistory.top().triangleIndex;
+        return nextToTraceIndex;
+    }
+
+    if(neighbourReachAttempt == AttemptToReach::TRIANGLE_REACHED){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "next index: %d", vectorOfTriangles[sortedNeighbours[neighbourNumber]].myIndex);
+        #endif
+        currentTriangle.traced = true;
+        traced[currentTriangle.myIndex] = true;
+        nextToTraceIndex = vectorOfTriangles[sortedNeighbours[neighbourNumber]].myIndex;
+    }else if(faildeAttempts >= (int)sortedNeighbours.size()){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "too many attempts");
+        #endif
+        pathHistory.pop();
+        if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+            pathHistory.pop();
+        }
+        //go to the last successful triangle
+        moveToPoint(pathHistory.top().pose, pathHistory.top().triangleIndex, movementDirection::BACKWARDS);
+        nextToTraceIndex = pathHistory.top().triangleIndex;
+    }else if(neighbourReachAttempt == AttemptToReach::TRIANGLE_REACHED){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "reached a thing");
+        #endif
+    }else{
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "something went very wrong");
+        #endif
+    }
+    return nextToTraceIndex;
+    }
