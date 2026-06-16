@@ -188,9 +188,6 @@ void triangleExtraction(
 void triangleExtraction(
     std::vector<Triangle> &vectorOfTriangles
 );
-<<<<<<< HEAD
-
-=======
 #ifdef POINTCLOUDS
 void getClosestPoint(
     pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, 
@@ -198,7 +195,6 @@ void getClosestPoint(
     std::vector<float>& pointKNNSquaredDistance
 );
 #endif
->>>>>>> 086cbc6 (new starting position prefers lower triangles during tracing)
 int startOperation(
     std::vector<Triangle> vectorOfTriangles, 
     std::vector<bool> &traced, 
