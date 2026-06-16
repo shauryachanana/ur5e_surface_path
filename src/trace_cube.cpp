@@ -38,7 +38,7 @@ int main(int argc, char** argv){
     triangleExtraction(vectorOfTriangles);
     traced = std::vector<bool>(vectorOfTriangles.size(), false);
 
-    #ifdef DEBUGGER
+    #ifndef DEBUGGER
     for(int i = 0; i < (int)vectorOfTriangles.size(); i++){
         RCLCPP_WARN(logger, "neighbours of %d : %d, %d, %d", i, vectorOfTriangles[i].myNeighbours[0],vectorOfTriangles[i].myNeighbours[1],vectorOfTriangles[i].myNeighbours[2]);
     }

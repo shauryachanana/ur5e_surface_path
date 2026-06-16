@@ -94,6 +94,13 @@ void getTCPorientation(double* TCPorientation){
     TCPorientation[1] = transform.transform.rotation.y;
     TCPorientation[2] = transform.transform.rotation.z;
     TCPorientation[3] = transform.transform.rotation.w;
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[0]);
+    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[1]);
+    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[2]);
+    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[3]);
+    #endif  
 }
 
 bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir, waypointType waypoint){
@@ -130,8 +137,8 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     geometry_msgs::msg::Pose target_pose;
 
-    target_pose.position.x = triangle.centreOfTriangle[0] * 0.001f;
-    target_pose.position.y = - triangle.centreOfTriangle[1] * 0.001f + 1.00f;
+    target_pose.position.x = - triangle.centreOfTriangle[0] * 0.001f;
+    target_pose.position.y = - triangle.centreOfTriangle[1] * 0.001f + 0.65f;
     target_pose.position.z = triangle.centreOfTriangle[2] * 0.001f;
 
     #ifndef DEBUGGER
@@ -141,19 +148,23 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     #endif
 
     tf2::Vector3 normal(
-        triangle.normal_x,
-        triangle.normal_y,
+        - triangle.normal_x,
+        - triangle.normal_y,
         triangle.normal_z
     );
 
     normal.normalize();
 
-    tf2::Vector3 z_axis = normal;  // Z into the surface
+    #ifndef DEBUGGER
+    RCLCPP_WARN(logger, "normal xyz : %f, %f, %f", normal[0], normal[1], normal[2]);
+    #endif
+
+    tf2::Vector3 z_axis = - normal;  // Z into the surface
     z_axis.normalize();
 
-    tf2::Vector3 world_up(0.0, 0.0, -1.0);
+    tf2::Vector3 world_up(0.0, 0.0, 1.0);
     if (std::abs(z_axis.dot(world_up)) > 0.99) {
-        world_up = tf2::Vector3(0.0, 1.0, 0.0);
+        world_up = tf2::Vector3(1.0, 0.0, 0.0);
     }
 
     tf2::Vector3 x_axis = world_up.cross(z_axis);
@@ -177,6 +188,10 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     target_pose.orientation.z = q.z();
     target_pose.orientation.w = q.w();
 
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "orientation of -normal: %f, %f, %f, %f", target_pose.orientation.x, target_pose.orientation.y, target_pose.orientation.z, target_pose.orientation.w);
+    #endif
+
     return target_pose;
 }
 
@@ -190,11 +205,13 @@ AttemptToReach traceNeighbour(
     geometry_msgs::msg::Pose target_pose;
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "attemppt to go to: %d", triangleToTrace.myIndex);
-    RCLCPP_WARN(logger, "x y z: %f, %f, %f", triangleToTrace.centreOfTriangle[0], 
-                                                triangleToTrace.centreOfTriangle[1], 
-                                                triangleToTrace.centreOfTriangle[2]
+    RCLCPP_WARN(logger, "x y z: %f, %f, %f", - triangleToTrace.centreOfTriangle[0] * 0.001f, 
+                                                - triangleToTrace.centreOfTriangle[1] * 0.001f + 0.65f, 
+                                                triangleToTrace.centreOfTriangle[2] * 0.001f
                                             );
     #endif
+    double TCPorientation[4] = {0,0,0,0};
+        getTCPorientation(TCPorientation);
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
 
@@ -204,8 +221,8 @@ AttemptToReach traceNeighbour(
         RCLCPP_WARN(logger, "failed to go straight");
         #endif
         //try going to an edge
-        target_pose.position.x = edgeToPrevTriangle.centreOfEdge[0] * 0.001f;
-        target_pose.position.y = - edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 1.00f;
+        target_pose.position.x = - edgeToPrevTriangle.centreOfEdge[0] * 0.001f;
+        target_pose.position.y = - edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 0.65f;
         target_pose.position.z = edgeToPrevTriangle.centreOfEdge[2] * 0.001f;
         //use the orientation of the old triangle to avoid collisions
         double TCPorientation[4] = {0,0,0,0};
@@ -269,7 +286,7 @@ AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesiredTr
         //look for the closest in a given vector
         closestTriangle = getClosestTriangle(vectorOfDesiredTriangles, currentTCP);
 
-        #ifdef DEBUGGER
+        #ifndef DEBUGGER
         RCLCPP_WARN(logger, "attempt to reach index %d", vectorOfDesiredTriangles[closestTriangle].myIndex);
         RCLCPP_WARN(logger, "x y z: %f, %f, %f", vectorOfDesiredTriangles[closestTriangle].centreOfTriangle[0], 
                                                 vectorOfDesiredTriangles[closestTriangle].centreOfTriangle[1], 
@@ -308,7 +325,7 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
             validNeighbours.push_back(neighbourIndex);
             //the position of this value
             edgeIndices.push_back(i);
-            #ifdef DEBUGGER
+            #ifndef DEBUGGER
             RCLCPP_WARN(logger, "stored triangle index: %d", neighbourIndex);
             #endif
         }
@@ -353,7 +370,7 @@ int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &t
     std::vector<int> sortedNeighbours = result.first;
     std::vector<int> sortedEdges = result.second;
 
-    #ifdef DEBUGGER
+    #ifndef DEBUGGER
     for(int i = 0; i<(int)sortedNeighbours.size(); i++){
         RCLCPP_WARN(logger, "sortedNeighbours size: %d", sortedNeighbours[i]);
     }
@@ -402,6 +419,7 @@ int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &t
     }else{
         #ifdef DEBUGGER
         RCLCPP_WARN(logger, "empty vectors");
+        RCLCPP_WARN(logger, "last index was: %d", pathHistory.top().triangleIndex);
         #endif
         pathHistory.pop();
         if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
