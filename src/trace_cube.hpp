@@ -71,6 +71,7 @@ enum class AttemptToReach{
     TRIANGLE_FAILED,
     CENTER_TO_EDGE_FAILED,
     EDGE_TO_CENTER_FAILED,
+    FAILED,
     EMPTY_VECTOR
 };
 
@@ -131,9 +132,11 @@ struct Triangle{
 
     int getValidNeighbours(std::vector<bool> &tracedTriangles, const std::vector<Triangle>& vectorOfTriangles){
         int numbOfNeigh = 0;
-        tracedTriangles[0] = tracedTriangles[0];
-        for(int i = 0; i<3; i++){
-            if((myNeighbours[i] != -1) && (vectorOfTriangles[myNeighbours[i]].traced == false) && (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
+        for(int i = 0; i<(int)myNeighbours.size(); i++){
+            if((myNeighbours[i] != -1) && 
+            (vectorOfTriangles[myNeighbours[i]].traced == false) && 
+            (tracedTriangles[myNeighbours[i]] == false) &&
+            (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
                 numbOfNeigh++;
             }
         }
@@ -190,7 +193,7 @@ void getClosestPoint(
 int startOperation(
     std::vector<Triangle> vectorOfTriangles, 
     std::vector<bool> &traced, 
-    Triangle triangleToTrace
+    Triangle &triangleToTrace
 );
 void init();
 void goHome();

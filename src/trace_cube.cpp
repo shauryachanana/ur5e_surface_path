@@ -39,14 +39,14 @@ int main(int argc, char** argv){
     traced = std::vector<bool>(vectorOfTriangles.size(), false);
 
     #ifdef DEBUGGER
-    for(int i = 0; i < vectorOfTriangles.size(); i++){
+    for(int i = 0; i < (int)vectorOfTriangles.size(); i++){
         RCLCPP_WARN(logger, "neighbours of %d : %d, %d, %d", i, vectorOfTriangles[i].myNeighbours[0],vectorOfTriangles[i].myNeighbours[1],vectorOfTriangles[i].myNeighbours[2]);
     }
     #endif
     #ifdef POINTCLOUDS
     //create a point cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
+w   s   
     //now we have all the triangle centres and theor normals stored
     //centers go to the point cloud obj for easy nearest neighbour calculation
     //vectorOfTriangles is used to store the normal vectors of the triangles to orient the TCP
