@@ -18,7 +18,6 @@ find_package(geometric_shapes REQUIRED)
 
 find_package(tf2_ros REQUIRED)
 
-
 add_executable(hello_moveit src/hello_moveit.cpp)
 add_executable(
   trace_cube 

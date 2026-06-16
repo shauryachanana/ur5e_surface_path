@@ -27,6 +27,13 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+#ifdef POINTCLOUDS
+
+//add find_package(PCL REQUIRED) to CMakeLists.txt!
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#endif
 
 #include <unordered_map>
 #include <utility>
@@ -181,7 +188,17 @@ void triangleExtraction(
 void triangleExtraction(
     std::vector<Triangle> &vectorOfTriangles
 );
+<<<<<<< HEAD
 
+=======
+#ifdef POINTCLOUDS
+void getClosestPoint(
+    pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, 
+    std::vector<int>& pointIdxKNNSearch, 
+    std::vector<float>& pointKNNSquaredDistance
+);
+#endif
+>>>>>>> 086cbc6 (new starting position prefers lower triangles during tracing)
 int startOperation(
     std::vector<Triangle> vectorOfTriangles, 
     std::vector<bool> &traced, 

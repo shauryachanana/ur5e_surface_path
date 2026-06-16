@@ -23,11 +23,11 @@ void goHome(){
 
     //the initial position (right before the tracing)
     std::vector<double> preferred_joints = {
-        -101.0 * M_PI / 180.0,
-        -115.0 * M_PI / 180.0,
-        -25.0 * M_PI / 180.0,
-        -205.0 * M_PI / 180.0,
-        -101.0 * M_PI / 180.0,
+        -90.0 * M_PI / 180.0,
+        -110.0 * M_PI / 180.0,
+        -125.0 * M_PI / 180.0,
+        -110.0 * M_PI / 180.0,
+        -90.0 * M_PI / 180.0,
         -180.0 * M_PI / 180.0
     };
 
@@ -377,8 +377,8 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
         if(countA != countB){
             return countA < countB;
         }else{
-            return distanceToTCP(vectorOfTriangles[validNeighbours[a]], currentTCP) < 
-                   distanceToTCP(vectorOfTriangles[validNeighbours[b]], currentTCP);
+            return vectorOfTriangles[validNeighbours[a]].centreOfTriangle[2] < 
+                   vectorOfTriangles[validNeighbours[b]].centreOfTriangle[2];
         }
     });
 
