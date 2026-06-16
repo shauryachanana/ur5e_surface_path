@@ -27,10 +27,6 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-//for point clouds:
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/kdtree/kdtree_flann.h>
 
 #include <unordered_map>
 #include <utility>
@@ -185,11 +181,7 @@ void triangleExtraction(
 void triangleExtraction(
     std::vector<Triangle> &vectorOfTriangles
 );
-void getClosestPoint(
-    pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, 
-    std::vector<int>& pointIdxKNNSearch, 
-    std::vector<float>& pointKNNSquaredDistance
-);
+
 int startOperation(
     std::vector<Triangle> vectorOfTriangles, 
     std::vector<bool> &traced, 

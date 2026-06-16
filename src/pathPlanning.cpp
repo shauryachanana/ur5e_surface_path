@@ -49,58 +49,94 @@ void goHome(){
     }
 }
 
-void getTCPpose(double* currentTCP){
+void getTCPpose(double* currentTCP)
+{
     auto logger = rclcpp::get_logger("currentTCP");
-    //take a position of tcp
-    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    rclcpp::sleep_for(std::chrono::seconds(1));
+    static auto tf_buffer =
+        std::make_shared<tf2_ros::Buffer>(node->get_clock());
 
-    geometry_msgs::msg::TransformStamped transform;
-    transform = tf_buffer->lookupTransform(
-        "base_link",
-        "tool0",
-        tf2::TimePointZero
-    );
+    static auto tf_listener =
+        std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    currentTCP[0] = transform.transform.translation.x;
-    currentTCP[1] = transform.transform.translation.y;
-    currentTCP[2] = transform.transform.translation.z;
+    try
+    {
+        if (!tf_buffer->canTransform(
+                "base_link",
+                "tool0",
+                tf2::TimePointZero,
+                tf2::durationFromSec(1.0)))
+        {
+            RCLCPP_WARN(logger,
+                        "Transform base_link -> tool0 unavailable");
+            return;
+        }
 
-    #ifdef DEBUGGER
-    RCLCPP_WARN(logger, "TCP: %f", currentTCP[0]);
-    RCLCPP_WARN(logger, "TCP: %f", currentTCP[1]);
-    RCLCPP_WARN(logger, "TCP: %f", currentTCP[2]);
-    #endif
+        auto transform = tf_buffer->lookupTransform(
+            "base_link",
+            "tool0",
+            tf2::TimePointZero);
+
+        currentTCP[0] = transform.transform.translation.x;
+        currentTCP[1] = transform.transform.translation.y;
+        currentTCP[2] = transform.transform.translation.z;
+
+#ifdef DEBUGGER
+        RCLCPP_WARN(logger, "TCP: %f", currentTCP[0]);
+        RCLCPP_WARN(logger, "TCP: %f", currentTCP[1]);
+        RCLCPP_WARN(logger, "TCP: %f", currentTCP[2]);
+#endif
+    }
+    catch (const tf2::TransformException &ex)
+    {
+        RCLCPP_ERROR(logger, "TF error: %s", ex.what());
+    }
 }
 
-void getTCPorientation(double* TCPorientation){
+void getTCPorientation(double* TCPorientation)
+{
     auto logger = rclcpp::get_logger("getTCPorientation");
-    //take a position of tcp
-    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    rclcpp::sleep_for(std::chrono::seconds(1));
+    static auto tf_buffer =
+        std::make_shared<tf2_ros::Buffer>(node->get_clock());
 
-    geometry_msgs::msg::TransformStamped transform;
-    transform = tf_buffer->lookupTransform(
-        "base_link",
-        "tool0",
-        tf2::TimePointZero
-    );
+    static auto tf_listener =
+        std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    TCPorientation[0] = transform.transform.rotation.x;
-    TCPorientation[1] = transform.transform.rotation.y;
-    TCPorientation[2] = transform.transform.rotation.z;
-    TCPorientation[3] = transform.transform.rotation.w;
+    try
+    {
+        if (!tf_buffer->canTransform(
+                "base_link",
+                "tool0",
+                tf2::TimePointZero,
+                tf2::durationFromSec(1.0)))
+        {
+            RCLCPP_WARN(logger,
+                        "Transform base_link -> tool0 unavailable");
+            return;
+        }
 
-    #ifndef DEBUGGER
-    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[0]);
-    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[1]);
-    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[2]);
-    RCLCPP_WARN(logger, "TCP: %f", TCPorientation[3]);
-    #endif  
+        auto transform = tf_buffer->lookupTransform(
+            "base_link",
+            "tool0",
+            tf2::TimePointZero);
+
+        TCPorientation[0] = transform.transform.rotation.x;
+        TCPorientation[1] = transform.transform.rotation.y;
+        TCPorientation[2] = transform.transform.rotation.z;
+        TCPorientation[3] = transform.transform.rotation.w;
+
+#ifndef DEBUGGER
+        RCLCPP_WARN(logger, "TCP: %f", TCPorientation[0]);
+        RCLCPP_WARN(logger, "TCP: %f", TCPorientation[1]);
+        RCLCPP_WARN(logger, "TCP: %f", TCPorientation[2]);
+        RCLCPP_WARN(logger, "TCP: %f", TCPorientation[3]);
+#endif
+    }
+    catch (const tf2::TransformException &ex)
+    {
+        RCLCPP_ERROR(logger, "TF error: %s", ex.what());
+    }
 }
 
 bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir, waypointType waypoint){
