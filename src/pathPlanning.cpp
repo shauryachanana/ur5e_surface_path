@@ -95,7 +95,7 @@ void getTCPorientation(double* TCPorientation){
     TCPorientation[2] = transform.transform.rotation.z;
     TCPorientation[3] = transform.transform.rotation.w;
 
-    #ifdef DEBUGGER
+    #ifndef DEBUGGER
     RCLCPP_WARN(logger, "TCP: %f", TCPorientation[0]);
     RCLCPP_WARN(logger, "TCP: %f", TCPorientation[1]);
     RCLCPP_WARN(logger, "TCP: %f", TCPorientation[2]);
@@ -137,11 +137,11 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     geometry_msgs::msg::Pose target_pose;
 
-    target_pose.position.x = - triangle.centreOfTriangle[0] * 0.001f;
-    target_pose.position.y = - triangle.centreOfTriangle[1] * 0.001f + 0.65f;
-    target_pose.position.z = triangle.centreOfTriangle[2] * 0.001f;
+    target_pose.position.x = - (triangle.centreOfTriangle[0] * 0.001f) - (triangle.normal_x * 0.05f);
+    target_pose.position.y = - (triangle.centreOfTriangle[1] * 0.001f) + 0.65f - (triangle.normal_y * 0.05f);
+    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + (triangle.normal_z * 0.05f);
 
-    #ifndef DEBUGGER
+    #ifdef DEBUGGER
     RCLCPP_WARN(logger, "x : %f", target_pose.position.x);
     RCLCPP_WARN(logger, "y : %f", target_pose.position.y);
     RCLCPP_WARN(logger, "z : %f", target_pose.position.z);
@@ -188,7 +188,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     target_pose.orientation.z = q.z();
     target_pose.orientation.w = q.w();
 
-    #ifdef DEBUGGER
+    #ifndef DEBUGGER
     RCLCPP_WARN(logger, "orientation of -normal: %f, %f, %f, %f", target_pose.orientation.x, target_pose.orientation.y, target_pose.orientation.z, target_pose.orientation.w);
     #endif
 
@@ -205,9 +205,9 @@ AttemptToReach traceNeighbour(
     geometry_msgs::msg::Pose target_pose;
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "attemppt to go to: %d", triangleToTrace.myIndex);
-    RCLCPP_WARN(logger, "x y z: %f, %f, %f", - triangleToTrace.centreOfTriangle[0] * 0.001f, 
-                                                - triangleToTrace.centreOfTriangle[1] * 0.001f + 0.65f, 
-                                                triangleToTrace.centreOfTriangle[2] * 0.001f
+    RCLCPP_WARN(logger, "x y z: %f, %f, %f", - (triangleToTrace.centreOfTriangle[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f), 
+                                                - (triangleToTrace.centreOfTriangle[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f), 
+                                                triangleToTrace.centreOfTriangle[2] * 0.001f + (triangleToTrace.normal_z * 0.05f)
                                             );
     #endif
     double TCPorientation[4] = {0,0,0,0};
@@ -221,9 +221,9 @@ AttemptToReach traceNeighbour(
         RCLCPP_WARN(logger, "failed to go straight");
         #endif
         //try going to an edge
-        target_pose.position.x = - edgeToPrevTriangle.centreOfEdge[0] * 0.001f;
-        target_pose.position.y = - edgeToPrevTriangle.centreOfEdge[1] * 0.001f + 0.65f;
-        target_pose.position.z = edgeToPrevTriangle.centreOfEdge[2] * 0.001f;
+        target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f);
+        target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
+        target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
         //use the orientation of the old triangle to avoid collisions
         double TCPorientation[4] = {0,0,0,0};
         getTCPorientation(TCPorientation);
