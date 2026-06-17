@@ -24,10 +24,10 @@ void goHome(){
     //the initial position (right before the tracing)
     std::vector<double> preferred_joints = {
         -90.0 * M_PI / 180.0,
+        -110 * M_PI / 180.0,
+        -45.0 * M_PI / 180.0,
         -110.0 * M_PI / 180.0,
-        -125.0 * M_PI / 180.0,
-        -110.0 * M_PI / 180.0,
-        -90.0 * M_PI / 180.0,
+        -260.0 * M_PI / 180.0,
         -180.0 * M_PI / 180.0
     };
 
@@ -158,6 +158,7 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
         if(movementDir == movementDirection::FORWARD){
             Waypoint newWaypoint = {target_pose, waypoint, triangleIndex};
             pathHistory.push(newWaypoint);
+            RCLCPP_ERROR(logger, "type of waypoint: %d",(int)pathHistory.top().typeOfWaypoint);
         }
         target_poses.pop_back();
         return true;
@@ -191,7 +192,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     normal.normalize();
 
-    #ifndef DEBUGGER
+    #ifdef DEBUGGER
     RCLCPP_WARN(logger, "normal xyz : %f, %f, %f", normal[0], normal[1], normal[2]);
     #endif
 
@@ -224,7 +225,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     target_pose.orientation.z = q.z();
     target_pose.orientation.w = q.w();
 
-    #ifndef DEBUGGER
+    #ifdef DEBUGGER
     RCLCPP_WARN(logger, "orientation of -normal: %f, %f, %f, %f", target_pose.orientation.x, target_pose.orientation.y, target_pose.orientation.z, target_pose.orientation.w);
     #endif
 
@@ -237,7 +238,8 @@ AttemptToReach traceNeighbour(
     Edge& edgeToPrevTriangle
 ){
     auto logger = rclcpp::get_logger("traceThreeNeighbours");
-
+    double TCPorientation[4] = {0,0,0,0};
+    getTCPorientation(TCPorientation);
     geometry_msgs::msg::Pose target_pose;
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "attemppt to go to: %d", triangleToTrace.myIndex);
@@ -245,9 +247,10 @@ AttemptToReach traceNeighbour(
                                                 - (triangleToTrace.centreOfTriangle[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f), 
                                                 triangleToTrace.centreOfTriangle[2] * 0.001f + (triangleToTrace.normal_z * 0.05f)
                                             );
+    
     #endif
-    double TCPorientation[4] = {0,0,0,0};
-        getTCPorientation(TCPorientation);
+    
+    
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
 
@@ -443,8 +446,12 @@ int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &t
         }else if(faildeAttempts >= (int)sortedNeighbours.size() - 1){
             #ifdef DEBUGGER
             RCLCPP_WARN(logger, "too many attempts");
+            RCLCPP_WARN(logger, "pathHistory size: %d", (int)pathHistory.size());
             #endif
             pathHistory.pop();
+            if (pathHistory.size() == 0){
+                return -1;
+            }
             if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
                 pathHistory.pop();
             }
@@ -456,10 +463,20 @@ int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &t
         #ifdef DEBUGGER
         RCLCPP_WARN(logger, "empty vectors");
         RCLCPP_WARN(logger, "last index was: %d", pathHistory.top().triangleIndex);
+        RCLCPP_WARN(logger, "size of pathHistory %d", (int)pathHistory.size());
+
         #endif
+
         pathHistory.pop();
+        if (pathHistory.size() == 0){
+                return -1;
+        }
         if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+            moveToPoint(pathHistory.top().pose, 0, movementDirection::BACKWARDS);
             pathHistory.pop();
+            if (pathHistory.size() == 0){
+                return -1;
+            }
         }
         //go to the last successful triangle
         moveToPoint(pathHistory.top().pose, pathHistory.top().triangleIndex, movementDirection::BACKWARDS);

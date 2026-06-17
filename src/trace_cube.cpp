@@ -82,6 +82,14 @@ w   s
     int chosenVector = 0;
 
     for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
+        double sign = 0;
+        sign = vectorOfTriangles[i].centreOfTriangle[0] * vectorOfTriangles[i].normal_x + vectorOfTriangles[i].centreOfTriangle[1] * vectorOfTriangles[i].normal_y + vectorOfTriangles[i].centreOfTriangle[2] * vectorOfTriangles[i].normal_z;
+        if (sign > 0){
+            RCLCPP_WARN(logger, "Normal is outward");
+        }
+        if (sign < 0){
+            RCLCPP_WARN(logger, "Normal is inward");
+        }
         if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 1){
             //use one if a truiangle only has one neighbour (prefferable)
             singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
@@ -164,8 +172,13 @@ w   s
     goHome();
 
     gripper_group_interface.reset();
+
+    if (rclcpp::ok()) {
+        rclcpp::shutdown();
+    }
+
     node.reset();
 
-    rclcpp::shutdown();
     return 0;
+    
 }
