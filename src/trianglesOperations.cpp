@@ -113,6 +113,10 @@ int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* current
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             closestTriangle = i;
+        }else if(distanceToTriangle == minDist){
+            if(vectorOfTriangles[i].centreOfTriangle[2] < vectorOfTriangles[closestTriangle].centreOfTriangle[2]){
+                closestTriangle = i;
+            }
         }
     }
     return closestTriangle;
