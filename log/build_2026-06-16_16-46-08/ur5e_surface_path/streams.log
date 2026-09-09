@@ -1,0 +1,56 @@
+[0.022s] Invoking command in '/home/shauryachanana/ros2_ws/src/ur5e_surface_path/build/ur5e_surface_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/shauryachanana/ros2_ws/install/pyexample:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/shauryachanana/ros2_ws/src/ur5e_surface_path -DCMAKE_INSTALL_PREFIX=/home/shauryachanana/ros2_ws/src/ur5e_surface_path/install/ur5e_surface_path
+[0.213s] -- The C compiler identification is GNU 13.3.0
+[0.356s] -- The CXX compiler identification is GNU 13.3.0
+[0.400s] -- Detecting C compiler ABI info
+[0.612s] -- Detecting C compiler ABI info - done
+[0.633s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.642s] -- Detecting C compile features
+[0.643s] -- Detecting C compile features - done
+[0.668s] -- Detecting CXX compiler ABI info
+[0.920s] -- Detecting CXX compiler ABI info - done
+[0.955s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.956s] -- Detecting CXX compile features
+[0.958s] -- Detecting CXX compile features - done
+[0.985s] -- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+[1.383s] -- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter 
+[1.732s] -- Found rclcpp: 28.1.18 (/opt/ros/jazzy/share/rclcpp/cmake)
+[1.873s] -- Found rosidl_generator_c: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+[1.913s] -- Found rosidl_generator_cpp: 4.6.7 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+[1.969s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[2.022s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.223s] -- Found rmw_implementation_cmake: 7.3.3 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+[2.237s] -- Found rmw_fastrtps_cpp: 8.4.3 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+[2.449s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")  
+[2.501s] -- Found FastRTPS: /opt/ros/jazzy/include (Required is at least version "2.13") 
+[2.539s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[2.735s] -- Found std_msgs: 5.3.7 (/opt/ros/jazzy/share/std_msgs/cmake)
+[2.782s] -- Found trajectory_msgs: 5.3.7 (/opt/ros/jazzy/share/trajectory_msgs/cmake)
+[2.857s] -- Found moveit_ros_planning_interface: 2.12.4 (/opt/ros/jazzy/share/moveit_ros_planning_interface/cmake)
+[3.178s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: date_time filesystem program_options system thread 
+[3.729s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+[3.906s] -- Found parameter_traits: 0.7.1 (/opt/ros/jazzy/share/parameter_traits/cmake)
+[3.949s] -- Found rclcpp_lifecycle: 28.1.18 (/opt/ros/jazzy/share/rclcpp_lifecycle/cmake)
+[4.029s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: filesystem 
+[4.191s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[4.191s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[4.621s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread chrono 
+[4.737s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: thread system filesystem regex date_time program_options 
+[4.807s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread 
+[4.915s] [31mCMake Error at CMakeLists.txt:20 (find_package):
+[4.916s]   By not providing "FindPCL.cmake" in CMAKE_MODULE_PATH this project has
+[4.916s]   asked CMake to find a package configuration file provided by "PCL", but
+[4.916s]   CMake did not find one.
+[4.916s] 
+[4.916s]   Could not find a package configuration file provided by "PCL" with any of
+[4.917s]   the following names:
+[4.917s] 
+[4.917s]     PCLConfig.cmake
+[4.917s]     pcl-config.cmake
+[4.917s] 
+[4.917s]   Add the installation prefix of "PCL" to CMAKE_PREFIX_PATH or set "PCL_DIR"
+[4.917s]   to a directory containing one of the above files.  If "PCL" provides a
+[4.917s]   separate development package or SDK, be sure it has been installed.
+[4.918s] 
+[4.918s] [0m
+[4.918s] -- Configuring incomplete, errors occurred!
+[4.937s] Invoked command in '/home/shauryachanana/ros2_ws/src/ur5e_surface_path/build/ur5e_surface_path' returned '1': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/shauryachanana/ros2_ws/install/pyexample:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/shauryachanana/ros2_ws/src/ur5e_surface_path -DCMAKE_INSTALL_PREFIX=/home/shauryachanana/ros2_ws/src/ur5e_surface_path/install/ur5e_surface_path
