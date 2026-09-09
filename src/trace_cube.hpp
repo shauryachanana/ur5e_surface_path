@@ -200,11 +200,14 @@ void getClosestPoint(
     std::vector<float>& pointKNNSquaredDistance
 );
 #endif
+
+// FIXED: Changed vectorOfTriangles parameter to pass by reference (&)
 int startOperation(
-    std::vector<Triangle> vectorOfTriangles, 
+    std::vector<Triangle> &vectorOfTriangles, 
     std::vector<bool> &traced, 
     Triangle &triangleToTrace
 );
+
 void init();
 void goHome();
 void getTCPpose(double* currentTCP);

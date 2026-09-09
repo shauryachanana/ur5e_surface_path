@@ -2,6 +2,7 @@
 #include <iostream>
 
 std::stack<Waypoint> pathHistory;
+std::stack<Waypoint> stackOfReachableWaypoints;
 extern std::vector<bool> traced;
 std::vector<Triangle> plannedPath;
 
@@ -166,6 +167,9 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
         if(movementDir == movementDirection::FORWARD){
             Waypoint newWaypoint = {target_pose, waypoint, triangleIndex, trajectory};
             pathHistory.push(newWaypoint);
+            //dont use it as a counter, use .isTraced on the Triangle
+            //also share any ideas you have regarding the "planning" part
+            stackOfReachableWaypoints.push(newWaypoint);
             RCLCPP_ERROR(logger, "type of waypoint: %d",(int)pathHistory.top().typeOfWaypoint);
         }
         target_poses.pop_back();
@@ -345,7 +349,7 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
     return {sortedNeighbours, sortedEdgeIndices};
 }
 
-int startOperation(std::vector<Triangle> vectorOfTriangles, std::vector<bool> &traced, Triangle &currentTriangle){
+int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle &currentTriangle){
     auto logger = rclcpp::get_logger("startOperation");
 
     int nextToTraceIndex = 0;
@@ -412,19 +416,27 @@ std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy){
     //pathHistory is a stack (most recent push on top); this walks a COPY of
     //it (the original pathHistory is left intact) and reverses it back into
     //the chronological order the waypoints were actually planned in
+    std::stack<Waypoint> isolatedLocalStack = stackCopy;
     std::vector<Waypoint> reversedOrder;
-    while(!stackCopy.empty()){
-        reversedOrder.push_back(stackCopy.top());
-        stackCopy.pop();
+    while(!isolatedLocalStack.empty()){
+        reversedOrder.push_back(isolatedLocalStack.top());
+        isolatedLocalStack.pop();
     }
     std::reverse(reversedOrder.begin(), reversedOrder.end());
     return reversedOrder;
 }
 
 float computeCoveragePercent(const std::vector<Triangle> &vectorOfTriangles, const std::vector<Triangle> &plannedPathVec){
+    auto logger = rclcpp::get_logger("startOperation");
     if(vectorOfTriangles.empty()){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "vectorOfTriangles.empty()");
+        #endif
         return 0.0f;
     }
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "vectorOfTriangles NOT");
+    #endif
     return 100.0f * (float)plannedPathVec.size() / (float)vectorOfTriangles.size();
 }
 
@@ -445,6 +457,6 @@ void executePlannedPath(const std::vector<Waypoint> &orderedWaypoints){
         moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
         cartesian_plan.trajectory = wp.trajectory;
         gripper_group_interface->execute(cartesian_plan);
-        RCLCPP_WARN(logger, "executed waypoint for triangle %d (type %d)", wp.triangleIndex, (int)wp.typeOfWaypoint);
+        RCLCPP_WARN(logger, "executed waypoint for %f, %f, %f", wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
     }
 }

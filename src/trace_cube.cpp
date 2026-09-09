@@ -10,6 +10,7 @@ std::string mesh_path = "file://" + ament_index_cpp::get_package_share_directory
 shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
 
 extern std::stack<Waypoint> pathHistory;
+extern std::stack<Waypoint> stackOfReachableWaypoints;
 std::vector<bool> traced;
 
 int main(int argc, char** argv){
@@ -141,7 +142,8 @@ int main(int argc, char** argv){
     RCLCPP_WARN(logger, "START OPERATION");
     #endif
     int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
-    while(nextOne != -1){
+    int a = 0;
+    while(nextOne != -1 && a<15){
         nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
     }
 
@@ -161,7 +163,10 @@ int main(int argc, char** argv){
     //flatten the planning history (a stack) back into the order it was
     //produced in, and pull out the vector<Triangle> that represents the
     //complete, fixed sequence of triangles the robot will visit
-    std::vector<Waypoint> orderedWaypoints = extractOrderedPath(pathHistory);
+    std::vector<Waypoint> orderedWaypoints = extractOrderedPath(stackOfReachableWaypoints);
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "extractOrderedPath passed");
+    #endif
     plannedPath.clear();
     for(const auto &wp : orderedWaypoints){
         plannedPath.push_back(vectorOfTriangles[wp.triangleIndex]);
