@@ -21,9 +21,18 @@ int main(int argc, char** argv){
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
 
-    gripper_group_interface = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
-        node, "ur_manipulator"
-    );
+    // 1. Create a background thread executor explicitly dedicated to handling ROS messages
+    auto spinner = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    spinner->add_node(node);
+    
+    // 2. Start spinning in the background immediately.
+    // This handles /joint_states concurrently while main() continues executing down.
+    std::thread spinner_thread([spinner]() { spinner->spin(); });
+
+    // 3. Wait a moment for the background spinner to capture initial clock and joint frames
+    rclcpp::sleep_for(std::chrono::seconds(2));
+
+    gripper_group_interface = std::make_unique<moveit::planning_interface::MoveGroupInterface>(node, "ur_manipulator");
 
     init();
 
@@ -37,32 +46,6 @@ int main(int argc, char** argv){
 
     triangleExtraction(vectorOfTriangles);
     traced = std::vector<bool>(vectorOfTriangles.size(), false);
-
-    #ifndef DEBUGGER
-    for(int i = 0; i < (int)vectorOfTriangles.size(); i++){
-        RCLCPP_WARN(logger, "neighbours of %d : %d, %d, %d", i, vectorOfTriangles[i].myNeighbours[0],vectorOfTriangles[i].myNeighbours[1],vectorOfTriangles[i].myNeighbours[2]);
-    }
-    #endif
-    #ifdef POINTCLOUDS
-    //create a point cloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-w   s   
-    //now we have all the triangle centres and theor normals stored
-    //centers go to the point cloud obj for easy nearest neighbour calculation
-    //vectorOfTriangles is used to store the normal vectors of the triangles to orient the TCP
-    triangleExtraction(vectorOfTriangles, cloud);
-    std::vector<bool> traced = std::vector<int>(vectorOfTriangles.size(), false);
-
-    pcl::KdTreeFLANN<pcl::PointXYZ> kdTree;
-
-    //create kdTree
-    kdTree.setInputCloud(cloud);
-
-    //in this vector we will get an index of the nearest neighbour
-    std::vector<int> pointIdxKNNSearch(1);
-    //in this vector we will get a distance to the nearest neighbour
-    std::vector<float> pointKNNSquaredDistance(1);
-    #endif
 
     /*=============================================================*/
 
@@ -82,14 +65,6 @@ w   s
     int chosenVector = 0;
 
     for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
-        double sign = 0;
-        sign = vectorOfTriangles[i].centreOfTriangle[0] * vectorOfTriangles[i].normal_x + vectorOfTriangles[i].centreOfTriangle[1] * vectorOfTriangles[i].normal_y + vectorOfTriangles[i].centreOfTriangle[2] * vectorOfTriangles[i].normal_z;
-        if (sign > 0){
-            RCLCPP_WARN(logger, "Normal is outward");
-        }
-        if (sign < 0){
-            RCLCPP_WARN(logger, "Normal is inward");
-        }
         if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 1){
             //use one if a truiangle only has one neighbour (prefferable)
             singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
@@ -162,9 +137,50 @@ w   s
 
     /*=====================START THE OPERATION=====================*/
 
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "START OPERATION");
+    #endif
     int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
     while(nextOne != -1){
         nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
+    }
+
+    /*=============================================================*/
+
+    /*===================PLAN COMPLETE — REVIEW & EXECUTE===========*/
+
+    //planning is done and the physical robot has not moved at all yet.
+    //drop the virtual chained start state so any further real planning
+    //(the execution replay below, and goHome()) starts from the robot's
+    //actual, unmoved current position instead of the last virtual pose.
+    gripper_group_interface->setStartStateToCurrentState();
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "setStartStateToCurrentState passed");
+    #endif
+
+    //flatten the planning history (a stack) back into the order it was
+    //produced in, and pull out the vector<Triangle> that represents the
+    //complete, fixed sequence of triangles the robot will visit
+    std::vector<Waypoint> orderedWaypoints = extractOrderedPath(pathHistory);
+    plannedPath.clear();
+    for(const auto &wp : orderedWaypoints){
+        plannedPath.push_back(vectorOfTriangles[wp.triangleIndex]);
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "added waypoint");
+        #endif
+    }
+
+    float coveragePercent = computeCoveragePercent(vectorOfTriangles, plannedPath);
+
+    if(confirmPathExecution(coveragePercent)){
+        //execute the already-planned, already-verified trajectories in
+        //order; no re-planning or re-deciding of the sequence happens here
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "execution start");
+        #endif
+        executePlannedPath(orderedWaypoints);
+    }else{
+        RCLCPP_WARN(logger, "path execution cancelled by user");
     }
 
     /*=============================================================*/
@@ -175,6 +191,9 @@ w   s
 
     if (rclcpp::ok()) {
         rclcpp::shutdown();
+        if (spinner_thread.joinable()) {
+            spinner_thread.join();
+        }
     }
 
     node.reset();

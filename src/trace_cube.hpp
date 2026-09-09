@@ -92,6 +92,7 @@ struct Waypoint {
     geometry_msgs::msg::Pose pose;
     waypointType typeOfWaypoint;
     int triangleIndex;
+    moveit_msgs::msg::RobotTrajectory trajectory;
 };
 
 extern std::stack<Waypoint> pathHistory;
@@ -174,6 +175,10 @@ struct Triangle{
     }
 };
 
+//the complete, already-decided sequence of triangles to visit, filled in
+//during the planning pass and left untouched during execution
+extern std::vector<Triangle> plannedPath;
+
 AttemptToReach traceNeighbour(
     Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
@@ -211,5 +216,15 @@ float distanceToTCP(Triangle &triangle, double* currentTCP);
 bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE);
 // std::vector<int> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
 std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
+//converts the (stack-ordered, most-recent-first) planning history into the
+//chronological sequence it was produced in, without consuming pathHistory
+std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy);
+//fraction of the mesh's triangles that the planned path actually visits
+float computeCoveragePercent(const std::vector<Triangle> &vectorOfTriangles, const std::vector<Triangle> &plannedPathVec);
+//shows the coverage percentage and asks the operator to confirm (Y) or cancel (N)
+bool confirmPathExecution(float coveragePercent);
+//replays the already-planned, already-verified trajectories in order;
+//performs no planning/decision logic of its own
+void executePlannedPath(const std::vector<Waypoint> &orderedWaypoints);
 
 #endif
