@@ -145,6 +145,7 @@ int main(int argc, char** argv){
     int a = 0;
     while(nextOne != -1 && a<15){
         nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
+        a++;
     }
 
     /*=============================================================*/
@@ -175,7 +176,21 @@ int main(int argc, char** argv){
         #endif
     }
 
-    float coveragePercent = computeCoveragePercent(vectorOfTriangles, plannedPath);
+    // float coveragePercent = computeCoveragePercent(vectorOfTriangles, plannedPath);
+    float tracedf = 0;
+
+    for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
+        if(vectorOfTriangles[i].traced){
+            tracedf++;
+        }
+    }
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "traced: %f", tracedf);
+    RCLCPP_WARN(logger, "vectorOfTriangles: %ld", vectorOfTriangles.size());
+    #endif
+
+    float coveragePercent = 100.0f * tracedf / (float)vectorOfTriangles.size();
 
     if(confirmPathExecution(coveragePercent)){
         //execute the already-planned, already-verified trajectories in

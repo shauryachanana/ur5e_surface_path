@@ -135,6 +135,15 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
     moveit_msgs::msg::RobotTrajectory trajectory;
     std::vector<geometry_msgs::msg::Pose> target_poses;
 
+    RCLCPP_ERROR(
+    logger,
+    "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",
+    target_pose.orientation.x,
+    target_pose.orientation.y,
+    target_pose.orientation.z,
+    target_pose.orientation.w
+);
+
     target_poses.push_back(target_pose);
     double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
 
@@ -164,14 +173,16 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
             gripper_group_interface->setStartState(endState);
         }
 
+        Waypoint newWaypoint = {target_pose, waypoint, triangleIndex, trajectory};
+        stackOfReachableWaypoints.push(newWaypoint);
+
         if(movementDir == movementDirection::FORWARD){
-            Waypoint newWaypoint = {target_pose, waypoint, triangleIndex, trajectory};
             pathHistory.push(newWaypoint);
             //dont use it as a counter, use .isTraced on the Triangle
             //also share any ideas you have regarding the "planning" part
-            stackOfReachableWaypoints.push(newWaypoint);
             RCLCPP_ERROR(logger, "type of waypoint: %d",(int)pathHistory.top().typeOfWaypoint);
         }
+        
         target_poses.pop_back();
         return true;
     }else {
@@ -237,40 +248,68 @@ AttemptToReach traceNeighbour(
     auto logger = rclcpp::get_logger("traceThreeNeighbours");
     double TCPorientation[4] = {0,0,0,0};
     getTCPorientation(TCPorientation);
+    double TCPorientationCurrent[4] = {0,0,0,0};
+    for(int i = 0; i < 4; i++){
+        TCPorientationCurrent[i] = TCPorientation[i];
+    }
     geometry_msgs::msg::Pose target_pose;
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
-    //always go through the shared edge centre before the next triangle's
-    //centre — no direct center-to-center shortcut, regardless of the angle
-    //between the two triangles' normals.
-    target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f);
-    target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
-    target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
-    //use the orientation of the old triangle to avoid collisions
-    getTCPorientation(TCPorientation);
-    target_pose.orientation.x = TCPorientation[0];
-    target_pose.orientation.y = TCPorientation[1];
-    target_pose.orientation.z = TCPorientation[2];
-    target_pose.orientation.w = TCPorientation[3];
-
-    //if the edge is unreachable, then the triangle's unreachability counter goes up and we have to try next neighbour
-    if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
-        triangleToTrace.unreachableCounter++;
-        return AttemptToReach::FAILED;
-    }else{
-        //if we did go to an edge then we can try to go to the ceter of the next triangle
-        if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
-            //if the center is unreachable then we go back to "initial" triangle
+RCLCPP_ERROR(
+    logger,
+    "EDGE ORIENTATION: x=%f y=%f z=%f w=%f",
+    target_pose.orientation.x,
+    target_pose.orientation.y,
+    target_pose.orientation.z,
+    target_pose.orientation.w
+);
+    //if center to center failed
+    if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
+        //try going to an edge
+        target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f);
+        target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
+        target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
+        //use the orientation of the old triangle to avoid collisions
+        target_pose.orientation.x = TCPorientationCurrent[0];
+        target_pose.orientation.y = TCPorientationCurrent[1];
+        target_pose.orientation.z = TCPorientationCurrent[2];
+        target_pose.orientation.w = TCPorientationCurrent[3];
+        //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
+        if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "edge failed too");
+            #endif
             triangleToTrace.unreachableCounter++;
-            //delete an edge waypoint
-            pathHistory.pop();
-            moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
             return AttemptToReach::FAILED;
         }else{
-            triangleToTrace.traced = true;
-            traced[triangleToTrace.myIndex] = true;
-            return AttemptToReach::TRIANGLE_REACHED;
+            //if we did go to an edge then we can try to go to the ceter of the next triangle
+            if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
+                #ifdef DEBUGGER
+                RCLCPP_WARN(logger, "edge to center failed");
+                RCLCPP_WARN(logger, "x y z of triangle: %f, %f, %f", target_pose.position.x, target_pose.position.y, target_pose.position.z);
+                #endif
+                //if the center is unreachable then we go back to "initial" triangle
+                triangleToTrace.unreachableCounter++;
+                //delete an edge waypoint
+                pathHistory.pop();
+                moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
+                return AttemptToReach::FAILED;
+            }else{
+                #ifdef DEBUGGER
+                RCLCPP_WARN(logger, "edge to center success");
+                #endif
+                triangleToTrace.traced = true;
+                traced[triangleToTrace.myIndex] = true;
+                return AttemptToReach::TRIANGLE_REACHED;
+            }
         }
+    }else{
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "straight success");
+        #endif
+        triangleToTrace.traced = true;
+        traced[triangleToTrace.myIndex] = true;
+        return AttemptToReach::TRIANGLE_REACHED;
     }
 }
 
@@ -355,7 +394,9 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
     int nextToTraceIndex = 0;
     auto result = triangleWithLeastNeighbours(vectorOfTriangles, traced, currentTriangle);
 
+    /*untraced neighbour-triangle indices of currentTriangle, best candidate first*/
     std::vector<int> sortedNeighbours = result.first;
+    /*currentTriangle's three edge slots leads to each candidate*/
     std::vector<int> sortedEdges = result.second;
 
     int neighbourNumber = 0;
@@ -386,17 +427,23 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
                 return -1;
             }
             if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+                moveToPoint(pathHistory.top().pose, 0, movementDirection::BACKWARDS);
                 pathHistory.pop();
+                if (pathHistory.size() == 0){
+                    return -1;
+                }
             }
-            //go to the last successful triangle
             moveToPoint(pathHistory.top().pose, pathHistory.top().triangleIndex, movementDirection::BACKWARDS);
             nextToTraceIndex = pathHistory.top().triangleIndex;
         }
     }else{
+        /*if in the current position there are no reachable triangles*/
         pathHistory.pop();
         if (pathHistory.size() == 0){
                 return -1;
         }
+        /*move to a previous waypoint*/
+        /*if it was an edge between triangles then move backwards twice*/
         if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
             moveToPoint(pathHistory.top().pose, 0, movementDirection::BACKWARDS);
             pathHistory.pop();
@@ -407,7 +454,6 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
         //go to the last successful triangle
         moveToPoint(pathHistory.top().pose, pathHistory.top().triangleIndex, movementDirection::BACKWARDS);
         nextToTraceIndex = pathHistory.top().triangleIndex;
-        return nextToTraceIndex;
     }
     return nextToTraceIndex;
     }
@@ -458,5 +504,6 @@ void executePlannedPath(const std::vector<Waypoint> &orderedWaypoints){
         cartesian_plan.trajectory = wp.trajectory;
         gripper_group_interface->execute(cartesian_plan);
         RCLCPP_WARN(logger, "executed waypoint for %f, %f, %f", wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
+        RCLCPP_WARN(logger, "executed waypoint for %f, %f, %f, %f", wp.pose.orientation.x, wp.pose.orientation.y, wp.pose.orientation.z, wp.pose.orientation.w);
     }
 }
