@@ -322,11 +322,6 @@ bool moveToPointWithPenRotation(
 
             bool firstRotationPoint = true;
             for(auto rotationPoint : trajectory.joint_trajectory.points){
-                // computeCartesianPath includes the start state as its first
-                // trajectory point at t=0. The edge trajectory already ends
-                // at exactly that state, so appending it would create two
-                // points with the same timestamp. The controller can reject
-                // the resulting trajectory immediately during execution.
                 if(firstRotationPoint){
                     firstRotationPoint = false;
                     continue;
@@ -344,11 +339,10 @@ bool moveToPointWithPenRotation(
                 edgeTrajectory.points.push_back(rotationPoint);
             }
 
-            stackOfReachableWaypoints.top().pose = target_poses.back();
+            // stackOfReachableWaypoints.top().pose = target_poses.back();
 
             if(!pathHistory.empty() && pathHistory.top().typeOfWaypoint == waypointType::EDGE){
                 pathHistory.top().trajectory = stackOfReachableWaypoints.top().trajectory;
-                pathHistory.top().pose = target_poses.back();
             }
         }
 
@@ -407,16 +401,21 @@ AttemptToReach traceNeighbour(
         edgePenTip.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f);
 
         if(!moveToPointWithPenRotation(
-                target_pose,
-                nextPose.orientation,
-                edgePenTip)){
-            #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "edge rotation failed");
-            #endif
-            triangleToTrace.unreachableCounter++;
+            target_pose,
+            nextPose.orientation,
+            edgePenTip)){
+
+        triangleToTrace.unreachableCounter++;
+
+        if(!pathHistory.empty() &&
+        pathHistory.top().typeOfWaypoint == waypointType::EDGE){
             pathHistory.pop();
-            moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
-            return AttemptToReach::FAILED;
+        }
+
+        moveToPoint(targetPose(previousTriangle), 0,
+                    movementDirection::BACKWARDS);
+
+        return AttemptToReach::FAILED;
         }
 
         //The pen is now perpendicular to the next triangle at the same edge point.
@@ -428,9 +427,15 @@ AttemptToReach traceNeighbour(
             #endif
             //if the center is unreachable then we go back to "initial" triangle
             triangleToTrace.unreachableCounter++;
-            //delete an edge waypoint
-            pathHistory.pop();
+            // The center move FAILED, so no triangle waypoint was added
+            if(!pathHistory.empty() &&
+            pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+                pathHistory.pop();
+            }
+
+            // Return to the triangle from which this neighbour was attempted.
             moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
+
             return AttemptToReach::FAILED;
         }else{
             #ifdef DEBUGGER
