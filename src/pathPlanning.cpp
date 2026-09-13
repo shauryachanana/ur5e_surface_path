@@ -176,7 +176,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     target_pose.position.x = - (triangle.centreOfTriangle[0] * 0.001f) - (triangle.normal_x * 0.05f);
     target_pose.position.y = - (triangle.centreOfTriangle[1] * 0.001f) + 0.65f - (triangle.normal_y * 0.05f);
-    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + (triangle.normal_z * 0.05f);
+    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + 0.2f + (triangle.normal_z * 0.05f);
 
     #ifdef DEBUGGER
     RCLCPP_WARN(logger, "x : %f", target_pose.position.x);
@@ -245,7 +245,7 @@ AttemptToReach traceNeighbour(
     RCLCPP_WARN(logger, "attemppt to go to: %d", triangleToTrace.myIndex);
     RCLCPP_WARN(logger, "x y z: %f, %f, %f", - (triangleToTrace.centreOfTriangle[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f), 
                                                 - (triangleToTrace.centreOfTriangle[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f), 
-                                                triangleToTrace.centreOfTriangle[2] * 0.001f + (triangleToTrace.normal_z * 0.05f)
+                                                triangleToTrace.centreOfTriangle[2] * 0.001f + 0.2f + (triangleToTrace.normal_z * 0.05f)
                                             );
     
     #endif
@@ -262,7 +262,7 @@ AttemptToReach traceNeighbour(
         //try going to an edge
         target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f);
         target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
-        target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
+        target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + 0.2f + (triangleToTrace.normal_z * 0.05f);
         //use the orientation of the old triangle to avoid collisions
         double TCPorientation[4] = {0,0,0,0};
         getTCPorientation(TCPorientation);

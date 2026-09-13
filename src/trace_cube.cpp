@@ -80,16 +80,18 @@ w   s
     std::vector<Triangle> singleNeighbpurTrangles;
     std::vector<Triangle> doubleNeighbourTriangles;
     int chosenVector = 0;
-
+    // double number_of_outward_triangles = 0;
     for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
-        double sign = 0;
-        sign = vectorOfTriangles[i].centreOfTriangle[0] * vectorOfTriangles[i].normal_x + vectorOfTriangles[i].centreOfTriangle[1] * vectorOfTriangles[i].normal_y + vectorOfTriangles[i].centreOfTriangle[2] * vectorOfTriangles[i].normal_z;
-        if (sign > 0){
-            RCLCPP_WARN(logger, "Normal is outward");
-        }
-        if (sign < 0){
-            RCLCPP_WARN(logger, "Normal is inward");
-        }
+        // double sign = 0;
+
+        // sign = vectorOfTriangles[i].centreOfTriangle[0] * vectorOfTriangles[i].normal_x + vectorOfTriangles[i].centreOfTriangle[1] * vectorOfTriangles[i].normal_y + vectorOfTriangles[i].centreOfTriangle[2] * vectorOfTriangles[i].normal_z;
+        // if (sign > 0){
+        //     RCLCPP_WARN(logger, "Normal is outward");
+        //     number_of_outward_triangles++;
+        // }
+        // if (sign < 0){
+        //     RCLCPP_WARN(logger, "Normal is inward");
+        // }
         if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 1){
             //use one if a truiangle only has one neighbour (prefferable)
             singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
@@ -98,6 +100,7 @@ w   s
             doubleNeighbourTriangles.push_back(vectorOfTriangles[i]);
         }
         //if there are no < 2 neighbours triangles we use vectorOfTriangles
+
     }
     
     //depending on how full the arrays are use them to determine the initial one
