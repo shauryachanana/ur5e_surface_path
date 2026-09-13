@@ -142,11 +142,9 @@ int main(int argc, char** argv){
     RCLCPP_WARN(logger, "START OPERATION");
     #endif
     int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
-    // int a = 0;
-    // while(nextOne != -1 && a<3){
-    //     nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
-    //     a++;
-    // }
+    while(nextOne != -1){
+        nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
+    }
 
     /*=============================================================*/
 
@@ -176,7 +174,6 @@ int main(int argc, char** argv){
         #endif
     }
 
-    // float coveragePercent = computeCoveragePercent(vectorOfTriangles, plannedPath);
     float tracedf = 0;
 
     for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
@@ -195,9 +192,7 @@ int main(int argc, char** argv){
     if(confirmPathExecution(coveragePercent)){
         //execute the already-planned, already-verified trajectories in
         //order; no re-planning or re-deciding of the sequence happens here
-        #ifdef DEBUGGER
         RCLCPP_WARN(logger, "execution start");
-        #endif
         executePlannedPath(orderedWaypoints);
     }else{
         RCLCPP_WARN(logger, "path execution cancelled by user");

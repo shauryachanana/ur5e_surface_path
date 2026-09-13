@@ -6,6 +6,11 @@ std::stack<Waypoint> stackOfReachableWaypoints;
 extern std::vector<bool> traced;
 std::vector<Triangle> plannedPath;
 
+// Distance from tool0 to the pen tip along tool0's local +Z axis.
+// Positions in this file are in meters: 0.05 = 50 mm, 0.01 = 10 mm.
+constexpr double PEN_LENGTH = 0.05;
+constexpr int PEN_ROTATION_STEPS = 50;
+
 void init(){
     //set id from "Context" tab sed desired planning library (open motion plannin library)
     gripper_group_interface->setPlanningPipelineId("ompl");
@@ -189,9 +194,9 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     geometry_msgs::msg::Pose target_pose;
 
-    target_pose.position.x = - (triangle.centreOfTriangle[0] * 0.001f) - (triangle.normal_x * 0.05f);
-    target_pose.position.y = - (triangle.centreOfTriangle[1] * 0.001f) + 0.65f - (triangle.normal_y * 0.05f);
-    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + (triangle.normal_z * 0.05f);
+    target_pose.position.x = - (triangle.centreOfTriangle[0] * 0.001f) - (triangle.normal_x * PEN_LENGTH);
+    target_pose.position.y = - (triangle.centreOfTriangle[1] * 0.001f) + 0.65f - (triangle.normal_y * PEN_LENGTH);
+    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + (triangle.normal_z * PEN_LENGTH);
 
     tf2::Vector3 normal(
         - triangle.normal_x,
@@ -233,6 +238,139 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
     return target_pose;
 }
 
+
+bool moveToPointWithPenRotation(
+    const geometry_msgs::msg::Pose &edgePose,
+    const geometry_msgs::msg::Quaternion &nextOrientation,
+    const geometry_msgs::msg::Point &penTip
+){
+    auto logger = rclcpp::get_logger("moveToPointWithPenRotation");
+
+    moveit_msgs::msg::RobotTrajectory trajectory;
+    std::vector<geometry_msgs::msg::Pose> target_poses;
+
+    tf2::Quaternion startQ(
+        edgePose.orientation.x,
+        edgePose.orientation.y,
+        edgePose.orientation.z,
+        edgePose.orientation.w
+    );
+    tf2::Quaternion endQ(
+        nextOrientation.x,
+        nextOrientation.y,
+        nextOrientation.z,
+        nextOrientation.w
+    );
+    startQ.normalize();
+    endQ.normalize();
+
+    // Quaternions q and -q represent the same orientation. Keep the
+    // interpolation on the shorter rotational path.
+    if (startQ.dot(endQ) < 0.0) {
+        endQ = tf2::Quaternion(-endQ.x(), -endQ.y(), -endQ.z(), -endQ.w());
+    }
+
+    // The edgePose is already the first point of this operation.
+    // From there, rotate around the pen tip while compensating tool0's
+    // position so the pen tip stays at exactly the same point.
+    for(int i = 1; i <= PEN_ROTATION_STEPS; i++){
+        double t = (double)i / (double)PEN_ROTATION_STEPS;
+        tf2::Quaternion q = startQ.slerp(endQ, t);
+        q.normalize();
+
+        tf2::Vector3 penOffset = tf2::Matrix3x3(q) * tf2::Vector3(0.0, 0.0, PEN_LENGTH);
+
+        geometry_msgs::msg::Pose rotationPose;
+        rotationPose.position.x = penTip.x - penOffset.x();
+        rotationPose.position.y = penTip.y - penOffset.y();
+        rotationPose.position.z = penTip.z - penOffset.z();
+
+        rotationPose.orientation.x = q.x();
+        rotationPose.orientation.y = q.y();
+        rotationPose.orientation.z = q.z();
+        rotationPose.orientation.w = q.w();
+
+        target_poses.push_back(rotationPose);
+    }
+
+    double fraction = gripper_group_interface->computeCartesianPath(
+        target_poses, 0.01, trajectory, true
+    );
+
+    if(fraction >= 0.9){
+        if(!trajectory.joint_trajectory.points.empty()){
+            auto current_state_ptr = gripper_group_interface->getCurrentState();
+            if(!current_state_ptr){
+                return false;
+            }
+
+            moveit::core::RobotState endState(*current_state_ptr);
+            endState.setJointGroupPositions(
+                gripper_group_interface->getName(),
+                trajectory.joint_trajectory.points.back().positions
+            );
+            endState.update();
+            gripper_group_interface->setStartState(endState);
+        }
+
+        // This rotation is part of the edge transition, so keep it in the
+        // same edge waypoint that was already created by moveToPoint().
+        if(!stackOfReachableWaypoints.empty() &&
+        !stackOfReachableWaypoints.top().trajectory.joint_trajectory.points.empty()){
+            auto &edgeTrajectory = stackOfReachableWaypoints.top().trajectory.joint_trajectory;
+            rclcpp::Duration timeOffset(edgeTrajectory.points.back().time_from_start);
+
+            bool firstRotationPoint = true;
+            for(auto rotationPoint : trajectory.joint_trajectory.points){
+                // computeCartesianPath includes the start state as its first
+                // trajectory point at t=0. The edge trajectory already ends
+                // at exactly that state, so appending it would create two
+                // points with the same timestamp. The controller can reject
+                // the resulting trajectory immediately during execution.
+                if(firstRotationPoint){
+                    firstRotationPoint = false;
+                    continue;
+                }
+
+                rclcpp::Duration rotationTime(rotationPoint.time_from_start);
+                rclcpp::Duration totalTime = timeOffset + rotationTime;
+
+                rotationPoint.time_from_start.sec =
+                    static_cast<int32_t>(totalTime.nanoseconds() / 1000000000LL);
+
+                rotationPoint.time_from_start.nanosec =
+                    static_cast<uint32_t>(totalTime.nanoseconds() % 1000000000LL);
+
+                edgeTrajectory.points.push_back(rotationPoint);
+            }
+
+            stackOfReachableWaypoints.top().pose = target_poses.back();
+
+            if(!pathHistory.empty() && pathHistory.top().typeOfWaypoint == waypointType::EDGE){
+                pathHistory.top().trajectory = stackOfReachableWaypoints.top().trajectory;
+                pathHistory.top().pose = target_poses.back();
+            }
+        }
+
+        RCLCPP_ERROR(logger, "pen rotation at edge planned successfully");
+        return true;
+    }
+
+    RCLCPP_ERROR(logger, "pen rotation at edge failed, fraction=%f", fraction);
+
+    // moveToPoint() already added the edge waypoint before this rotation
+    // was attempted. The rotation is part of that same waypoint, so if the
+    // rotation fails, that edge waypoint must be removed again. Otherwise
+    // an unreachable/invalid waypoint remains in the planned path.
+    if(!stackOfReachableWaypoints.empty() &&
+       stackOfReachableWaypoints.top().typeOfWaypoint == waypointType::EDGE){
+        stackOfReachableWaypoints.pop();
+    }
+
+    return false;
+}
+
+
 AttemptToReach traceNeighbour(
     Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
@@ -243,55 +381,67 @@ AttemptToReach traceNeighbour(
     geometry_msgs::msg::Pose target_pose;
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
-    RCLCPP_ERROR(logger,"EDGE ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
-    //if center to center failed
-    if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
-        //try going to an edge
-        target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (triangleToTrace.normal_x * 0.05f);
-        target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
-        target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
-        //use the orientation of the old triangle to avoid collisions
-        target_pose.orientation.x = previousPose.orientation.x;
-        target_pose.orientation.y = previousPose.orientation.y;
-        target_pose.orientation.z = previousPose.orientation.z;
-        target_pose.orientation.w = previousPose.orientation.w;
-        //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
-        if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
+    //try going to an edge
+    target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (previousTriangle.normal_x * PEN_LENGTH);
+    target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (previousTriangle.normal_y * PEN_LENGTH);
+    target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (previousTriangle.normal_z * PEN_LENGTH);
+    //use the orientation of the old triangle to avoid collisions
+    target_pose.orientation.x = previousPose.orientation.x;
+    target_pose.orientation.y = previousPose.orientation.y;
+    target_pose.orientation.z = previousPose.orientation.z;
+    target_pose.orientation.w = previousPose.orientation.w;
+    //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
+    if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "edge failed too");
+        #endif
+        triangleToTrace.unreachableCounter++;
+        return AttemptToReach::FAILED;
+    }else{
+        //At the edge, keep the pen tip fixed and rotate the pen so its +Z
+        //axis becomes perpendicular to the next triangle.
+        geometry_msgs::msg::Pose nextPose = targetPose(triangleToTrace);
+        geometry_msgs::msg::Point edgePenTip;
+        edgePenTip.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f);
+        edgePenTip.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f;
+        edgePenTip.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f);
+
+        if(!moveToPointWithPenRotation(
+                target_pose,
+                nextPose.orientation,
+                edgePenTip)){
             #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "edge failed too");
+            RCLCPP_WARN(logger, "edge rotation failed");
             #endif
             triangleToTrace.unreachableCounter++;
+            pathHistory.pop();
+            moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
+            return AttemptToReach::FAILED;
+        }
+
+        //The pen is now perpendicular to the next triangle at the same edge point.
+        //Continue from the edge to the center of the next triangle.
+        if(moveToPoint(nextPose, triangleToTrace.myIndex) == false){
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "edge to center failed");
+            RCLCPP_WARN(logger, "x y z of triangle: %f, %f, %f", target_pose.position.x, target_pose.position.y, target_pose.position.z);
+            #endif
+            //if the center is unreachable then we go back to "initial" triangle
+            triangleToTrace.unreachableCounter++;
+            //delete an edge waypoint
+            pathHistory.pop();
+            moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
             return AttemptToReach::FAILED;
         }else{
-            //if we did go to an edge then we can try to go to the ceter of the next triangle
-            if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
-                #ifdef DEBUGGER
-                RCLCPP_WARN(logger, "edge to center failed");
-                RCLCPP_WARN(logger, "x y z of triangle: %f, %f, %f", target_pose.position.x, target_pose.position.y, target_pose.position.z);
-                #endif
-                //if the center is unreachable then we go back to "initial" triangle
-                triangleToTrace.unreachableCounter++;
-                //delete an edge waypoint
-                pathHistory.pop();
-                moveToPoint(targetPose(previousTriangle), 0, movementDirection::BACKWARDS);
-                return AttemptToReach::FAILED;
-            }else{
-                #ifdef DEBUGGER
-                RCLCPP_WARN(logger, "edge to center success");
-                #endif
-                triangleToTrace.traced = true;
-                traced[triangleToTrace.myIndex] = true;
-                return AttemptToReach::TRIANGLE_REACHED;
-            }
+            #ifdef DEBUGGER
+            RCLCPP_WARN(logger, "edge to center success");
+            #endif
+            triangleToTrace.traced = true;
+            traced[triangleToTrace.myIndex] = true;
+            return AttemptToReach::TRIANGLE_REACHED;
         }
-    }else{
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "straight success");
-        #endif
-        triangleToTrace.traced = true;
-        traced[triangleToTrace.myIndex] = true;
-        return AttemptToReach::TRIANGLE_REACHED;
     }
+
 }
 
 AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesiredTriangles, int &closestTriangleIndex){
