@@ -135,14 +135,7 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
     moveit_msgs::msg::RobotTrajectory trajectory;
     std::vector<geometry_msgs::msg::Pose> target_poses;
 
-    RCLCPP_ERROR(
-    logger,
-    "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",
-    target_pose.orientation.x,
-    target_pose.orientation.y,
-    target_pose.orientation.z,
-    target_pose.orientation.w
-);
+    RCLCPP_ERROR(logger, "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
 
     target_poses.push_back(target_pose);
     double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
@@ -246,23 +239,11 @@ AttemptToReach traceNeighbour(
     Edge& edgeToPrevTriangle
 ){
     auto logger = rclcpp::get_logger("traceThreeNeighbours");
-    double TCPorientation[4] = {0,0,0,0};
-    getTCPorientation(TCPorientation);
-    double TCPorientationCurrent[4] = {0,0,0,0};
-    for(int i = 0; i < 4; i++){
-        TCPorientationCurrent[i] = TCPorientation[i];
-    }
+    geometry_msgs::msg::Pose previousPose = targetPose(previousTriangle);
     geometry_msgs::msg::Pose target_pose;
 
     //move to this triangle------------------------------------------------------------------------------------------------------------
-RCLCPP_ERROR(
-    logger,
-    "EDGE ORIENTATION: x=%f y=%f z=%f w=%f",
-    target_pose.orientation.x,
-    target_pose.orientation.y,
-    target_pose.orientation.z,
-    target_pose.orientation.w
-);
+    RCLCPP_ERROR(logger,"EDGE ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
     //if center to center failed
     if(moveToPoint(targetPose(triangleToTrace), triangleToTrace.myIndex) == false){
         //try going to an edge
@@ -270,10 +251,10 @@ RCLCPP_ERROR(
         target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (triangleToTrace.normal_y * 0.05f);
         target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (triangleToTrace.normal_z * 0.05f);
         //use the orientation of the old triangle to avoid collisions
-        target_pose.orientation.x = TCPorientationCurrent[0];
-        target_pose.orientation.y = TCPorientationCurrent[1];
-        target_pose.orientation.z = TCPorientationCurrent[2];
-        target_pose.orientation.w = TCPorientationCurrent[3];
+        target_pose.orientation.x = previousPose.orientation.x;
+        target_pose.orientation.y = previousPose.orientation.y;
+        target_pose.orientation.z = previousPose.orientation.z;
+        target_pose.orientation.w = previousPose.orientation.w;
         //if even edge is unreachable, then the triangles unreachability counter goes up and we have to try next neighbour
         if(moveToPoint(target_pose, 0, movementDirection::FORWARD, waypointType::EDGE) == false){
             #ifdef DEBUGGER
@@ -390,6 +371,10 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
 
 int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle &currentTriangle){
     auto logger = rclcpp::get_logger("startOperation");
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "checking if my build is working");
+    #endif
 
     int nextToTraceIndex = 0;
     auto result = triangleWithLeastNeighbours(vectorOfTriangles, traced, currentTriangle);

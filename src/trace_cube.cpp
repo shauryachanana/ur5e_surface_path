@@ -142,11 +142,11 @@ int main(int argc, char** argv){
     RCLCPP_WARN(logger, "START OPERATION");
     #endif
     int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
-    int a = 0;
-    while(nextOne != -1 && a<15){
-        nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
-        a++;
-    }
+    // int a = 0;
+    // while(nextOne != -1 && a<3){
+    //     nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
+    //     a++;
+    // }
 
     /*=============================================================*/
 
