@@ -14,7 +14,7 @@ void init(){
     //from 0 to 1
     gripper_group_interface->setMaxVelocityScalingFactor(1.0);
     //0 to 1, 0 for const velocity 
-    gripper_group_interface->setMaxAccelerationScalingFactor(0.0);
+    gripper_group_interface->setMaxAccelerationScalingFactor(1.0);
 }
 
 void goHome(){

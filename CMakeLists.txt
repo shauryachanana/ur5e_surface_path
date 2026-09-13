@@ -16,6 +16,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(geometric_shapes REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common kdtree)
 
 find_package(tf2_ros REQUIRED)
 

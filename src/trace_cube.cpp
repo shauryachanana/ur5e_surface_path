@@ -1,6 +1,8 @@
 #include "trace_cube.hpp"
-
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 //global node
+#include <pcl/kdtree/kdtree_flann.h>
 std::shared_ptr<rclcpp::Node> node;
 std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
@@ -13,6 +15,9 @@ extern std::stack<Waypoint> pathHistory;
 std::vector<bool> traced;
 
 int main(int argc, char** argv){
+    std::atomic<bool> measuring{false};
+    double total_path_length = 0.0;
+    std::vector<geometry_msgs::msg::Point> trace_points;
     rclcpp::init(argc, argv);
 
     // initialize them here after rclcpp::init()
@@ -20,6 +25,104 @@ int main(int argc, char** argv){
         "trace_cube",
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
+
+    auto spinner = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    spinner->add_node(node);
+
+    std::thread spinner_thread([spinner]() {
+        spinner->spin();
+    });
+
+    auto marker_pub = node->create_publisher<visualization_msgs::msg::Marker>(
+        "tcp_trace_marker", 10
+    );
+
+    auto tcp_marker_timer = node->create_wall_timer(
+    std::chrono::milliseconds(100),
+    [marker_pub, &measuring, &total_path_length, &trace_points]() {
+
+        if (!measuring.load()) {
+            return;
+        }
+        
+        double tcp[3] = {0.0, 0.0, 0.0};
+        getTCPpose(tcp);
+
+        geometry_msgs::msg::Point point;
+        point.x = tcp[0];
+        point.y = tcp[1];
+        point.z = tcp[2];
+
+        static geometry_msgs::msg::Point previous_sample;
+        static bool have_previous_sample = false;
+        
+
+        if (have_previous_sample) {
+            double step_distance = std::sqrt(
+                std::pow(point.x - previous_sample.x, 2) +
+                std::pow(point.y - previous_sample.y, 2) +
+                std::pow(point.z - previous_sample.z, 2)
+            );
+
+            total_path_length += step_distance;
+        }
+
+        previous_sample = point;
+        have_previous_sample = true;
+
+        static geometry_msgs::msg::Point last_point;
+        static bool first_point = true;
+
+        double distance = std::sqrt(
+            std::pow(point.x - last_point.x, 2) +
+            std::pow(point.y - last_point.y, 2) +
+            std::pow(point.z - last_point.z, 2)
+        );
+
+        if (first_point || distance >= 0.002) {
+            trace_points.push_back(point);
+            last_point = point;
+            first_point = false;
+        }
+
+        visualization_msgs::msg::Marker marker;
+
+        marker.header.frame_id = "base_link";
+        marker.header.stamp = node->now();
+
+        marker.ns = "tcp_live";
+        marker.id = 0;
+
+        marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        
+        marker.points = trace_points;
+
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = 0.005;
+
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+        marker.color.a = 1.0;
+
+        static int print_counter = 0;
+
+        print_counter++;
+
+        if (print_counter >= 20) {
+            RCLCPP_INFO(
+                node->get_logger(),
+                "Actual TCP path length: %.3f m",
+                total_path_length
+            );
+
+            print_counter = 0;
+        }
+
+        marker_pub->publish(marker);
+    });
 
     gripper_group_interface = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
         node, "ur_manipulator"
@@ -36,6 +139,40 @@ int main(int argc, char** argv){
     std::vector<Triangle> vectorOfTriangles;
 
     triangleExtraction(vectorOfTriangles);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr performance_cloud(
+    new pcl::PointCloud<pcl::PointXYZ>
+    );
+
+    performance_cloud->points.reserve(vectorOfTriangles.size());
+
+    for (const auto &triangle : vectorOfTriangles) {
+
+    pcl::PointXYZ p;
+
+    p.x = -(triangle.centreOfTriangle[0] * 0.001f)
+          - (triangle.normal_x * 0.05f);
+
+    p.y = -(triangle.centreOfTriangle[1] * 0.001f)
+          + 0.65f
+          - (triangle.normal_y * 0.05f);
+
+    p.z = (triangle.centreOfTriangle[2] * 0.001f)
+          + (triangle.normal_z * 0.05f);
+
+    performance_cloud->push_back(p);
+    
+    }
+
+    RCLCPP_INFO(
+    logger,
+    "Performance cloud contains %zu points",
+    performance_cloud->size()
+    );
+
+    pcl::KdTreeFLANN<pcl::PointXYZ> performance_kdtree;
+    performance_kdtree.setInputCloud(performance_cloud);
+    
     traced = std::vector<bool>(vectorOfTriangles.size(), false);
 
     #ifndef DEBUGGER
@@ -121,7 +258,7 @@ w   s
     
     AttemptToReach initialTriangle = AttemptToReach::EMPTY_VECTOR;
     int closestTriangleIndex = 0;
-    while((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector < 3)){
+    while((rclcpp::ok()) && (initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector < 3)){
         switch(chosenVector){
             case 0:
             #ifdef DEBUGGER
@@ -165,21 +302,51 @@ w   s
 
     /*=====================START THE OPERATION=====================*/
 
+    measuring = true;
+
+    auto tracing_start = std::chrono::steady_clock::now();
+
     int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
-    while(nextOne != -1){
+    while(rclcpp::ok() && nextOne != -1){
         nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
     }
+    measuring = false;
+
+    auto tracing_end = std::chrono::steady_clock::now();
+
+    double tracing_time =
+    std::chrono::duration<double>(tracing_end - tracing_start).count();
+    double average_tcp_speed = total_path_length / tracing_time;
+
+
+    
+
 
     /*=============================================================*/
 
-    goHome();
+    if (rclcpp::ok()) {
+        goHome();
+    }
 
-    gripper_group_interface.reset();
+    RCLCPP_INFO(
+        logger,
+        "Performance: distance = %.3f m | time = %.2f s | average speed = %.3f m/s",
+        total_path_length,
+        tracing_time,
+        average_tcp_speed
+    );
+
+    spinner->cancel();
 
     if (rclcpp::ok()) {
         rclcpp::shutdown();
     }
 
+    if (spinner_thread.joinable()) {
+        spinner_thread.join();
+    }
+
+    gripper_group_interface.reset();
     node.reset();
 
     return 0;
