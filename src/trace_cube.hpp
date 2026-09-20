@@ -7,6 +7,10 @@
 #include <stack>
 #include <math.h>
 #include <algorithm>
+#include <thread>
+#include <cmath>
+
+
 
 #include <fstream> // reading files from disk
 #include <chrono> //for selay of 2s
@@ -20,6 +24,7 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
