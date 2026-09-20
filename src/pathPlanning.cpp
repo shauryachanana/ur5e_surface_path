@@ -22,7 +22,7 @@ void init(){
     //from 0 to 1
     gripper_group_interface->setMaxVelocityScalingFactor(1.0);
     //0 to 1, 0 for const velocity 
-    gripper_group_interface->setMaxAccelerationScalingFactor(0.0);
+    gripper_group_interface->setMaxAccelerationScalingFactor(1.0);
 }
 
 void goHome(){
@@ -57,15 +57,9 @@ void goHome(){
     }
 }
 
-void getTCPpose(double* currentTCP)
+bool getTCPpose(double* currentTCP)
 {
     auto logger = rclcpp::get_logger("currentTCP");
-
-    static auto tf_buffer =
-        std::make_shared<tf2_ros::Buffer>(node->get_clock());
-
-    static auto tf_listener =
-        std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
     try
     {
@@ -75,23 +69,35 @@ void getTCPpose(double* currentTCP)
                 tf2::TimePointZero,
                 tf2::durationFromSec(1.0)))
         {
-            RCLCPP_WARN(logger,
-                        "Transform base_link -> tool0 unavailable");
-            return;
+            RCLCPP_ERROR(
+                logger,
+                "Transform base_link -> tool0 unavailable"
+            );
+
+            return false;
         }
 
         auto transform = tf_buffer->lookupTransform(
             "base_link",
             "tool0",
-            tf2::TimePointZero);
+            tf2::TimePointZero
+        );
 
         currentTCP[0] = transform.transform.translation.x;
         currentTCP[1] = transform.transform.translation.y;
         currentTCP[2] = transform.transform.translation.z;
+
+        return true;
     }
     catch (const tf2::TransformException &ex)
     {
-        RCLCPP_ERROR(logger, "TF error: %s", ex.what());
+        RCLCPP_ERROR(
+            logger,
+            "TF error: %s",
+            ex.what()
+        );
+
+        return false;
     }
 }
 
@@ -99,12 +105,6 @@ void getTCPorientation(double* TCPorientation)
 {
     auto logger = rclcpp::get_logger("getTCPorientation");
 
-    static auto tf_buffer =
-        std::make_shared<tf2_ros::Buffer>(node->get_clock());
-
-    static auto tf_listener =
-        std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
-
     try
     {
         if (!tf_buffer->canTransform(
@@ -113,15 +113,19 @@ void getTCPorientation(double* TCPorientation)
                 tf2::TimePointZero,
                 tf2::durationFromSec(1.0)))
         {
-            RCLCPP_WARN(logger,
-                        "Transform base_link -> tool0 unavailable");
+            RCLCPP_WARN(
+                logger,
+                "Transform base_link -> tool0 unavailable"
+            );
+
             return;
         }
 
         auto transform = tf_buffer->lookupTransform(
             "base_link",
             "tool0",
-            tf2::TimePointZero);
+            tf2::TimePointZero
+        );
 
         TCPorientation[0] = transform.transform.rotation.x;
         TCPorientation[1] = transform.transform.rotation.y;
@@ -130,7 +134,11 @@ void getTCPorientation(double* TCPorientation)
     }
     catch (const tf2::TransformException &ex)
     {
-        RCLCPP_ERROR(logger, "TF error: %s", ex.what());
+        RCLCPP_ERROR(
+            logger,
+            "TF error: %s",
+            ex.what()
+        );
     }
 }
 
@@ -320,6 +328,41 @@ bool moveToPointWithPenRotation(
             auto &edgeTrajectory = stackOfReachableWaypoints.top().trajectory.joint_trajectory;
             rclcpp::Duration timeOffset(edgeTrajectory.points.back().time_from_start);
 
+            // Check whether the end of the move-to-edge trajectory
+            // matches the beginning of the rotation trajectory.
+            if(!trajectory.joint_trajectory.points.empty())
+            {
+                const auto &edgeLast =
+                    edgeTrajectory.points.back().positions;
+
+                const auto &rotationFirst =
+                    trajectory.joint_trajectory.points.front().positions;
+
+                if(edgeLast.size() == rotationFirst.size())
+                {
+                    double maxBoundaryError = 0.0;
+
+                    for(std::size_t j = 0; j < edgeLast.size(); ++j)
+                    {
+                        maxBoundaryError = std::max(
+                            maxBoundaryError,
+                            std::abs(
+                                edgeLast[j] -
+                                rotationFirst[j]
+                            )
+                        );
+                    }
+
+                    RCLCPP_WARN(
+                        logger,
+                        "EDGE -> ROTATION boundary error = %.8f rad",
+                        maxBoundaryError
+                    );
+                }
+            }
+
+
+
             bool firstRotationPoint = true;
             for(auto rotationPoint : trajectory.joint_trajectory.points){
                 if(firstRotationPoint){
@@ -356,10 +399,10 @@ bool moveToPointWithPenRotation(
     // was attempted. The rotation is part of that same waypoint, so if the
     // rotation fails, that edge waypoint must be removed again. Otherwise
     // an unreachable/invalid waypoint remains in the planned path.
-    if(!stackOfReachableWaypoints.empty() &&
-       stackOfReachableWaypoints.top().typeOfWaypoint == waypointType::EDGE){
-        stackOfReachableWaypoints.pop();
-    }
+    // if(!stackOfReachableWaypoints.empty() &&
+    //    stackOfReachableWaypoints.top().typeOfWaypoint == waypointType::EDGE){
+    //     stackOfReachableWaypoints.pop();
+    // }
 
     return false;
 }
@@ -401,22 +444,46 @@ AttemptToReach traceNeighbour(
         edgePenTip.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f);
 
         if(!moveToPointWithPenRotation(
-            target_pose,
-            nextPose.orientation,
-            edgePenTip)){
+        target_pose,
+        nextPose.orientation,
+        edgePenTip))
+{
+    RCLCPP_WARN(
+        logger,
+        "Rotation failed. Keeping edge visit and planning return."
+    );
 
-        triangleToTrace.unreachableCounter++;
+    triangleToTrace.unreachableCounter++;
 
-        if(!pathHistory.empty() &&
-        pathHistory.top().typeOfWaypoint == waypointType::EDGE){
-            pathHistory.pop();
-        }
+    // Remove EDGE only from algorithmic path history.
+    // We didn't successfully cross into the neighbour.
+    if(!pathHistory.empty() &&
+       pathHistory.top().typeOfWaypoint == waypointType::EDGE)
+    {
+        pathHistory.pop();
+    }
 
-        moveToPoint(targetPose(previousTriangle), 0,
-                    movementDirection::BACKWARDS);
+    // IMPORTANT:
+    // The EDGE trajectory remains in stackOfReachableWaypoints.
+    //
+    // The virtual MoveIt state is currently at the edge because
+    // moveToPoint(edge) succeeded, while the failed rotation did
+    // not advance the virtual state.
+    //
+    // Therefore plan a return from edge -> previous triangle.
+    if(!moveToPoint(
+            targetPose(previousTriangle),
+            previousTriangle.myIndex,
+            movementDirection::BACKWARDS))
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Failed to plan return from edge to previous triangle"
+        );
+    }
 
-        return AttemptToReach::FAILED;
-        }
+    return AttemptToReach::FAILED;
+}
 
         //The pen is now perpendicular to the next triangle at the same edge point.
         //Continue from the edge to the center of the next triangle.
@@ -452,8 +519,16 @@ AttemptToReach traceNeighbour(
 AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesiredTriangles, int &closestTriangleIndex){
     auto logger = rclcpp::get_logger("attemptToReachNextClosest");
 
-    double currentTCP[3] = {0, 0, 0};
-    getTCPpose(currentTCP);
+    double currentTCP[3];
+
+    if (!getTCPpose(currentTCP)) {
+        RCLCPP_ERROR(
+            logger,
+            "Cannot determine TCP position. Aborting triangle selection."
+        );
+
+        return AttemptToReach::EMPTY_VECTOR;
+    }
     int closestTriangle = 0;
     std::size_t size = vectorOfDesiredTriangles.size();
 
@@ -635,15 +710,491 @@ bool confirmPathExecution(float coveragePercent){
     return (!response.empty() && (response[0] == 'Y' || response[0] == 'y'));
 }
 
-void executePlannedPath(const std::vector<Waypoint> &orderedWaypoints){
-    auto logger = rclcpp::get_logger("executePlannedPath");
-    //pure replay: each trajectory was already computed and verified during
-    //planning, so this loop performs no planning or decision-making at all
-    for(const auto &wp : orderedWaypoints){
-        moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
-        cartesian_plan.trajectory = wp.trajectory;
-        gripper_group_interface->execute(cartesian_plan);
-        RCLCPP_WARN(logger, "executed waypoint for %f, %f, %f", wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
-        RCLCPP_WARN(logger, "executed waypoint for %f, %f, %f, %f", wp.pose.orientation.x, wp.pose.orientation.y, wp.pose.orientation.z, wp.pose.orientation.w);
+bool executePlannedPath(
+    const std::vector<Waypoint> &orderedWaypoints)
+{
+    auto logger =
+        rclcpp::get_logger("executePlannedPath");
+
+    if(orderedWaypoints.empty())
+    {
+        RCLCPP_ERROR(
+            logger,
+            "No waypoints available for execution"
+        );
+
+        return false;
     }
+
+    /*
+     * Instead of executing every stored trajectory separately,
+     * construct ONE continuous joint trajectory containing all
+     * of them.
+     */
+    moveit_msgs::msg::RobotTrajectory combinedTrajectory;
+
+    auto &combinedJointTrajectory =
+        combinedTrajectory.joint_trajectory;
+
+    bool firstSegment = true;
+
+    /*
+     * This stores the time of the final point currently contained
+     * in the combined trajectory.
+     *
+     * Every new trajectory segment has its own time_from_start,
+     * usually beginning again from zero. Therefore its timestamps
+     * must be shifted before appending it.
+     */
+    int64_t combinedEndTimeNs = 0;
+
+  
+
+    /*
+     * Helper function:
+     * convert nanoseconds back into the ROS Duration message
+     * used by trajectory_msgs::msg::JointTrajectoryPoint.
+     */
+    auto setTimeFromNanoseconds =
+        [](builtin_interfaces::msg::Duration &duration,
+           int64_t nanoseconds)
+    {
+        duration.sec =
+            static_cast<int32_t>(
+                nanoseconds / 1000000000LL
+            );
+
+        duration.nanosec =
+            static_cast<uint32_t>(
+                nanoseconds % 1000000000LL
+            );
+    };
+
+    /* ============================================================
+       COMBINE ALL STORED TRAJECTORIES
+       ============================================================ */
+
+    for(std::size_t i = 0;
+        i < orderedWaypoints.size();
+        ++i)
+    {
+        const auto &wp =
+            orderedWaypoints[i];
+
+        const auto &segment =
+            wp.trajectory.joint_trajectory;
+
+        /* --------------------------------------------------------
+           Sanity checks
+           -------------------------------------------------------- */
+
+        if(segment.points.empty())
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Waypoint %zu has an empty trajectory",
+                i
+            );
+
+            return false;
+        }
+
+        if(segment.joint_names.empty())
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Waypoint %zu has no joint names",
+                i
+            );
+
+            return false;
+        }
+
+        /* --------------------------------------------------------
+           First trajectory establishes the joint ordering
+           -------------------------------------------------------- */
+
+        if(firstSegment)
+        {
+            combinedJointTrajectory.joint_names =
+                segment.joint_names;
+        }
+        else
+        {
+            /*
+             * Every trajectory must use exactly the same joints
+             * in exactly the same order.
+             */
+            if(segment.joint_names !=
+               combinedJointTrajectory.joint_names)
+            {
+                RCLCPP_ERROR(
+                    logger,
+                    "Joint-name mismatch at waypoint %zu",
+                    i
+                );
+
+                return false;
+            }
+        }
+
+        /* --------------------------------------------------------
+           Verify continuity between trajectories
+           -------------------------------------------------------- */
+
+        if(!firstSegment)
+        {
+            const auto &previousEnd =
+                combinedJointTrajectory
+                    .points.back()
+                    .positions;
+
+            const auto &currentStart =
+                segment.points.front().positions;
+
+            if(previousEnd.size() !=
+               currentStart.size())
+            {
+                RCLCPP_ERROR(
+                    logger,
+                    "Joint-vector size mismatch at waypoint %zu",
+                    i
+                );
+
+                return false;
+            }
+
+            double maxGap = 0.0;
+            std::string worstJoint;
+
+            for(std::size_t j = 0;
+                j < previousEnd.size();
+                ++j)
+            {
+                double gap =
+                    std::abs(
+                        previousEnd[j] -
+                        currentStart[j]
+                    );
+
+                if(gap > maxGap)
+                {
+                    maxGap = gap;
+                    worstJoint =
+                        segment.joint_names[j];
+                }
+            }
+
+            /*
+             * Your diagnostic run showed 0.00000000 rad,
+             * which is exactly what we want.
+             */
+            if(maxGap > 0.001)
+            {
+                RCLCPP_ERROR(
+                    logger,
+                    "Trajectory discontinuity before waypoint %zu: "
+                    "%.8f rad on joint %s",
+                    i,
+                    maxGap,
+                    worstJoint.c_str()
+                );
+
+                return false;
+            }
+        }
+
+        /* --------------------------------------------------------
+           Each individual trajectory has its own local clock.
+
+           Example:
+
+           trajectory A:
+               0.0
+               0.2
+               0.4
+
+           trajectory B:
+               0.0
+               0.1
+               0.3
+
+           We cannot simply append B because time would go backwards.
+
+           Instead B becomes:
+               0.5
+               0.7
+
+           relative to the accumulated trajectory.
+           -------------------------------------------------------- */
+
+        int64_t segmentStartTimeNs =
+            rclcpp::Duration(
+                segment.points.front().time_from_start
+            ).nanoseconds();
+
+        /*
+         * The first point of every trajectory after the first
+         * represents the same state as the last point of the
+         * previous trajectory.
+         *
+         * Do not store that duplicate point twice.
+         */
+        std::size_t firstPointToCopy =
+            firstSegment ? 0 : 1;
+
+        /*
+         * A segment containing only its duplicate starting point
+         * contains no additional motion.
+         */
+        if(firstPointToCopy >= segment.points.size())
+        {
+            firstSegment = false;
+            continue;
+        }
+
+        int64_t previousLocalTimeNs =
+            segmentStartTimeNs;
+
+        for(std::size_t pointIndex =
+                firstPointToCopy;
+            pointIndex < segment.points.size();
+            ++pointIndex)
+        {
+            auto newPoint =
+                segment.points[pointIndex];
+
+            int64_t localTimeNs =
+                rclcpp::Duration(
+                    newPoint.time_from_start
+                ).nanoseconds();
+
+            /*
+             * Make sure time progresses inside the original
+             * trajectory.
+             */
+            if(pointIndex > 0 &&
+               localTimeNs <= previousLocalTimeNs)
+            {
+                RCLCPP_ERROR(
+                    logger,
+                    "Non-increasing time inside waypoint %zu "
+                    "at trajectory point %zu",
+                    i,
+                    pointIndex
+                );
+
+                return false;
+            }
+
+            /*
+             * Convert this point's timestamp into time relative
+             * to the beginning of THIS segment.
+             */
+            int64_t relativeTimeNs =
+                localTimeNs -
+                segmentStartTimeNs;
+
+            /*
+             * Shift it so it begins after everything that has
+             * already been added to the combined trajectory.
+             */
+            int64_t newTimeNs =
+                combinedEndTimeNs +
+                relativeTimeNs;
+
+            /*
+             * Except for the very first trajectory point,
+             * timestamps must increase continuously.
+             */
+            if(!combinedJointTrajectory.points.empty())
+            {
+                int64_t previousCombinedTimeNs =
+                    rclcpp::Duration(
+                        combinedJointTrajectory
+                            .points.back()
+                            .time_from_start
+                    ).nanoseconds();
+
+                if(newTimeNs <= previousCombinedTimeNs)
+                {
+                    RCLCPP_ERROR(
+                        logger,
+                        "Combined trajectory time is not increasing "
+                        "at waypoint %zu point %zu",
+                        i,
+                        pointIndex
+                    );
+
+                    return false;
+                }
+            }
+
+            setTimeFromNanoseconds(
+                newPoint.time_from_start,
+                newTimeNs
+            );
+
+            combinedJointTrajectory.points.push_back(
+                newPoint
+            );
+
+            
+
+            previousLocalTimeNs =
+                localTimeNs;
+        }
+
+        /*
+         * The next trajectory must start after the final
+         * timestamp we just inserted.
+         */
+        if(!combinedJointTrajectory.points.empty())
+        {
+            combinedEndTimeNs =
+                rclcpp::Duration(
+                    combinedJointTrajectory
+                        .points.back()
+                        .time_from_start
+                ).nanoseconds();
+        }
+
+        firstSegment = false;
+    }
+
+    /* ============================================================
+       FINAL VALIDATION
+       ============================================================ */
+
+    if(combinedJointTrajectory.points.empty())
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Combined trajectory contains no points"
+        );
+
+        return false;
+    }
+
+    RCLCPP_WARN(
+        logger,
+        "Combined %zu stored waypoints into %zu trajectory points",
+        orderedWaypoints.size(),
+        combinedJointTrajectory.points.size()
+    );
+
+    double totalDurationSeconds =
+        static_cast<double>(combinedEndTimeNs) /
+        1000000000.0;
+
+    RCLCPP_WARN(
+        logger,
+        "Combined trajectory duration: %.3f seconds",
+        totalDurationSeconds
+    );
+
+    /* ============================================================
+       CHECK THE ROBOT AGAINST ONLY THE FIRST TRAJECTORY POINT
+       ============================================================ */
+
+    auto currentState =
+        gripper_group_interface->getCurrentState(1.0);
+
+    if(!currentState)
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Could not obtain current robot state before execution"
+        );
+
+        return false;
+    }
+
+    const auto &firstPoint =
+        combinedJointTrajectory.points.front();
+
+    if(firstPoint.positions.size() !=
+       combinedJointTrajectory.joint_names.size())
+    {
+        RCLCPP_ERROR(
+            logger,
+            "First trajectory point has invalid joint data"
+        );
+
+        return false;
+    }
+
+    double maxStartError = 0.0;
+    std::string worstStartJoint;
+
+    for(std::size_t j = 0;
+        j < combinedJointTrajectory.joint_names.size();
+        ++j)
+    {
+        const std::string &jointName =
+            combinedJointTrajectory.joint_names[j];
+
+        double actual =
+            currentState->getVariablePosition(
+                jointName
+            );
+
+        double planned =
+            firstPoint.positions[j];
+
+        double error =
+            std::abs(actual - planned);
+
+        if(error > maxStartError)
+        {
+            maxStartError = error;
+            worstStartJoint = jointName;
+        }
+    }
+
+    RCLCPP_WARN(
+        logger,
+        "Initial physical -> planned start error: "
+        "%.8f rad on joint %s",
+        maxStartError,
+        worstStartJoint.c_str()
+    );
+
+    /* ============================================================
+       EXECUTE THE COMPLETE PATH ONCE
+       ============================================================ */
+
+    moveit::planning_interface::
+        MoveGroupInterface::Plan completePlan;
+
+    completePlan.trajectory =
+        combinedTrajectory;
+
+    RCLCPP_WARN(
+        logger,
+        "Executing complete combined trajectory..."
+    );
+
+    auto result =
+        gripper_group_interface->execute(
+            completePlan
+        );
+
+    if(result !=
+       moveit::core::MoveItErrorCode::SUCCESS)
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Combined trajectory execution FAILED"
+        );
+
+        return false;
+    }
+
+    RCLCPP_WARN(
+        logger,
+        "Complete combined trajectory executed successfully"
+    );
+
+    return true;
 }

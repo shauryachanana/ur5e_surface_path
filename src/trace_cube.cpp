@@ -2,6 +2,10 @@
 
 //global node
 std::shared_ptr<rclcpp::Node> node;
+
+std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+
 std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
 //load a file
@@ -21,6 +25,12 @@ int main(int argc, char** argv){
         "trace_cube",
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
+
+    tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock()); // we need to 
+
+    tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer, node, false);
+
+    tf_buffer->setUsingDedicatedThread(true);
 
     // 1. Create a background thread executor explicitly dedicated to handling ROS messages
     auto spinner = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
@@ -95,7 +105,7 @@ int main(int argc, char** argv){
     
     AttemptToReach initialTriangle = AttemptToReach::EMPTY_VECTOR;
     int closestTriangleIndex = 0;
-    while((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector < 3)){
+    while((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector <= 3)){
         switch(chosenVector){
             case 0:
             #ifdef DEBUGGER
@@ -190,13 +200,35 @@ int main(int argc, char** argv){
 
     float coveragePercent = 100.0f * tracedf / (float)vectorOfTriangles.size();
 
-    if(confirmPathExecution(coveragePercent)){
-        //execute the already-planned, already-verified trajectories in
-        //order; no re-planning or re-deciding of the sequence happens here
+    if(confirmPathExecution(coveragePercent))
+    {
         RCLCPP_WARN(logger, "execution start");
-        executePlannedPath(orderedWaypoints);
-    }else{
-        RCLCPP_WARN(logger, "path execution cancelled by user");
+
+        bool executionSuccessful =
+            executePlannedPath(orderedWaypoints);
+
+        if(executionSuccessful)
+        {
+            RCLCPP_WARN(
+                logger,
+                "Complete planned path executed successfully"
+            );
+        }
+        else
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Planned path execution FAILED. "
+                "Execution was stopped at the first failed waypoint."
+            );
+        }
+    }
+    else
+    {
+        RCLCPP_WARN(
+            logger,
+            "path execution cancelled by user"
+        );
     }
 
     /*=============================================================*/
@@ -205,14 +237,23 @@ int main(int argc, char** argv){
 
     gripper_group_interface.reset();
 
-    if (rclcpp::ok()) {
-        rclcpp::shutdown();
-        if (spinner_thread.joinable()) {
-            spinner_thread.join();
-        }
+    spinner->cancel();
+
+    if (spinner_thread.joinable()) {
+        spinner_thread.join();
     }
 
+    tf_listener.reset();
+    tf_buffer.reset();
+
+    spinner->remove_node(node);
     node.reset();
+
+    spinner.reset();
+
+    if (rclcpp::ok()) {
+        rclcpp::shutdown();
+    }
 
     return 0;
     

@@ -47,6 +47,9 @@
 
 extern std::shared_ptr<rclcpp::Node> node;
 
+extern std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+extern std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+
 //to load mesh
 extern std::string mesh_path;
 extern shapes::Mesh* mesh;
@@ -210,7 +213,7 @@ int startOperation(
 
 void init();
 void goHome();
-void getTCPpose(double* currentTCP);
+bool getTCPpose(double* currentTCP);
 void getTCPorientation(double* TCPorientation);
 AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTriangles, int &closestTriangleIndex);
 geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
@@ -228,6 +231,6 @@ float computeCoveragePercent(const std::vector<Triangle> &vectorOfTriangles, con
 bool confirmPathExecution(float coveragePercent);
 //replays the already-planned, already-verified trajectories in order;
 //performs no planning/decision logic of its own
-void executePlannedPath(const std::vector<Waypoint> &orderedWaypoints);
+bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints);
 
 #endif
