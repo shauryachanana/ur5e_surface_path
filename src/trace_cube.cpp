@@ -3,6 +3,9 @@
 #include <pcl/point_types.h>
 //global node
 #include <pcl/kdtree/kdtree_flann.h>
+#include <algorithm>
+#include <fstream>
+#include <cmath>
 std::shared_ptr<rclcpp::Node> node;
 std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
 
@@ -13,6 +16,214 @@ shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
 
 extern std::stack<Waypoint> pathHistory;
 std::vector<bool> traced;
+
+
+struct CoverageResult
+{
+    std::vector<bool> covered;
+
+    std::size_t covered_triangles = 0;
+
+    double triangle_coverage_percent = 0.0;
+
+    double covered_area_m2 = 0.0;
+    double total_area_m2 = 0.0;
+    double area_coverage_percent = 0.0;
+
+    double average_nearest_distance_mm = 0.0;
+    double maximum_nearest_distance_mm = 0.0;
+};
+
+double triangleAreaM2(const Triangle& t)
+{
+    // STL coordinates appear to be millimetres in your project,
+    // so convert to metres.
+
+    double ax = (t.x[1] - t.x[0]) * 0.001;
+    double ay = (t.y[1] - t.y[0]) * 0.001;
+    double az = (t.z[1] - t.z[0]) * 0.001;
+
+    double bx = (t.x[2] - t.x[0]) * 0.001;
+    double by = (t.y[2] - t.y[0]) * 0.001;
+    double bz = (t.z[2] - t.z[0]) * 0.001;
+
+    double cx = ay * bz - az * by;
+    double cy = az * bx - ax * bz;
+    double cz = ax * by - ay * bx;
+
+    return 0.5 * std::sqrt(cx * cx + cy * cy + cz * cz);
+}
+
+CoverageResult analyseCoverage(
+    const std::vector<geometry_msgs::msg::Point>& trace_points,
+    const std::vector<Triangle>& triangles,
+    pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree,
+    double coverage_radius_m,
+    double interpolation_step_m)
+{
+    CoverageResult result;
+
+    result.covered.resize(triangles.size(), false);
+
+    if (trace_points.empty() || triangles.empty()) {
+        return result;
+    }
+
+    // ------------------------------------------------------------
+    // First: check how well the real TCP path aligns with our STL
+    // ------------------------------------------------------------
+
+    double nearest_sum_mm = 0.0;
+    double nearest_max_mm = 0.0;
+    std::size_t nearest_count = 0;
+
+    for (const auto& p : trace_points)
+    {
+        pcl::PointXYZ search_point;
+
+        search_point.x = p.x;
+        search_point.y = p.y;
+        search_point.z = p.z;
+
+        std::vector<int> index(1);
+        std::vector<float> squared_distance(1);
+
+        if (kdtree.nearestKSearch(
+                search_point,
+                1,
+                index,
+                squared_distance) > 0)
+        {
+            double distance_mm =
+                std::sqrt(squared_distance[0]) * 1000.0;
+
+            nearest_sum_mm += distance_mm;
+            nearest_max_mm =
+                std::max(nearest_max_mm, distance_mm);
+
+            nearest_count++;
+        }
+    }
+
+    if (nearest_count > 0)
+    {
+        result.average_nearest_distance_mm =
+            nearest_sum_mm / nearest_count;
+
+        result.maximum_nearest_distance_mm =
+            nearest_max_mm;
+    }
+
+
+    // ------------------------------------------------------------
+    // Helper: mark STL points close to one TCP position
+    // ------------------------------------------------------------
+
+    auto markNearbyTriangles =
+        [&](double x, double y, double z)
+    {
+        pcl::PointXYZ search_point;
+
+        search_point.x = x;
+        search_point.y = y;
+        search_point.z = z;
+
+        std::vector<int> indices;
+        std::vector<float> squared_distances;
+
+        if (kdtree.radiusSearch(
+                search_point,
+                coverage_radius_m,
+                indices,
+                squared_distances) > 0)
+        {
+            for (int index : indices)
+            {
+                result.covered[index] = true;
+            }
+        }
+    };
+
+
+    // ------------------------------------------------------------
+    // Follow the entire TCP LINE, not only the recorded dots
+    // ------------------------------------------------------------
+
+    for (std::size_t i = 1; i < trace_points.size(); i++)
+    {
+        const auto& a = trace_points[i - 1];
+        const auto& b = trace_points[i];
+
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        double dz = b.z - a.z;
+
+        double segment_length =
+            std::sqrt(dx * dx + dy * dy + dz * dz);
+
+        int steps = std::max(
+            1,
+            static_cast<int>(
+                std::ceil(segment_length / interpolation_step_m)
+            )
+        );
+
+        for (int s = 0; s < steps; s++)
+        {
+            double t =
+                static_cast<double>(s) /
+                static_cast<double>(steps);
+
+            double x = a.x + t * dx;
+            double y = a.y + t * dy;
+            double z = a.z + t * dz;
+
+            markNearbyTriangles(x, y, z);
+        }
+    }
+
+    // Make sure final TCP point is included.
+    const auto& last = trace_points.back();
+
+    markNearbyTriangles(
+        last.x,
+        last.y,
+        last.z
+    );
+
+
+    // ------------------------------------------------------------
+    // Calculate triangle count + real surface area
+    // ------------------------------------------------------------
+
+    for (std::size_t i = 0; i < triangles.size(); i++)
+    {
+        double area = triangleAreaM2(triangles[i]);
+
+        result.total_area_m2 += area;
+
+        if (result.covered[i])
+        {
+            result.covered_triangles++;
+            result.covered_area_m2 += area;
+        }
+    }
+
+    result.triangle_coverage_percent =
+        100.0 *
+        static_cast<double>(result.covered_triangles) /
+        static_cast<double>(triangles.size());
+
+    if (result.total_area_m2 > 0.0)
+    {
+        result.area_coverage_percent =
+            100.0 *
+            result.covered_area_m2 /
+            result.total_area_m2;
+    }
+
+    return result;
+}
 
 int main(int argc, char** argv){
     std::atomic<bool> measuring{false};
@@ -172,7 +383,7 @@ int main(int argc, char** argv){
 
     pcl::KdTreeFLANN<pcl::PointXYZ> performance_kdtree;
     performance_kdtree.setInputCloud(performance_cloud);
-    
+
     traced = std::vector<bool>(vectorOfTriangles.size(), false);
 
     #ifndef DEBUGGER
@@ -311,6 +522,29 @@ w   s
         nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
     }
     measuring = false;
+    // Stop collecting new TCP samples.
+    tcp_marker_timer->cancel();
+
+    // Give any currently-running callback a moment to finish.
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(200)
+    );
+
+    constexpr double COVERAGE_RADIUS_M = 0.005;       // 5 mm provisional
+    constexpr double INTERPOLATION_STEP_M = 0.002;   // 2 mm
+
+    RCLCPP_INFO(
+        logger,
+        "Starting geometric coverage analysis..."
+    );
+
+    CoverageResult coverage = analyseCoverage(
+        trace_points,
+        vectorOfTriangles,
+        performance_kdtree,
+        COVERAGE_RADIUS_M,
+        INTERPOLATION_STEP_M
+    );
 
     auto tracing_end = std::chrono::steady_clock::now();
 
@@ -319,21 +553,126 @@ w   s
     double average_tcp_speed = total_path_length / tracing_time;
 
 
-    
-
-
     /*=============================================================*/
 
     if (rclcpp::ok()) {
         goHome();
     }
+    std::ofstream trace_file("tcp_trace.csv");
+
+    trace_file << "x_m,y_m,z_m\n";
+
+    for (const auto& p : trace_points)
+    {
+        trace_file
+            << p.x << ","
+            << p.y << ","
+            << p.z << "\n";
+    }
+
+    trace_file.close();
+
+    std::ofstream summary_file("performance_summary.csv");
+
+    summary_file << "metric,value\n";
+    summary_file << "tcp_samples," << trace_points.size() << "\n";
+    summary_file << "path_length_m," << total_path_length << "\n";
+    summary_file << "tracing_time_s," << tracing_time << "\n";
+    summary_file << "average_speed_m_s,"
+                << total_path_length / tracing_time << "\n";
+
+    summary_file << "covered_triangles,"
+                << coverage.covered_triangles << "\n";
+
+    summary_file << "total_triangles,"
+                << vectorOfTriangles.size() << "\n";
+
+    summary_file << "triangle_coverage_percent,"
+                << coverage.triangle_coverage_percent << "\n";
+
+    summary_file << "surface_coverage_percent,"
+                << coverage.area_coverage_percent << "\n";
+
+    summary_file << "covered_area_m2,"
+                << coverage.covered_area_m2 << "\n";
+
+    summary_file << "total_area_m2,"
+                << coverage.total_area_m2 << "\n";
+
+    summary_file << "average_stl_distance_mm,"
+                << coverage.average_nearest_distance_mm << "\n";
+
+    summary_file << "maximum_stl_distance_mm,"
+                << coverage.maximum_nearest_distance_mm << "\n";
+
+    summary_file.close();
+
 
     RCLCPP_INFO(
         logger,
-        "Performance: distance = %.3f m | time = %.2f s | average speed = %.3f m/s",
-        total_path_length,
-        tracing_time,
-        average_tcp_speed
+        "========== PERFORMANCE RESULTS =========="
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "TCP samples: %zu",
+        trace_points.size()
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Actual TCP distance: %.3f m",
+        total_path_length
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Tracing time: %.2f s",
+        tracing_time
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Average TCP speed: %.3f m/s",
+        total_path_length / tracing_time
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Covered triangles: %zu / %zu",
+        coverage.covered_triangles,
+        vectorOfTriangles.size()
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Triangle coverage: %.2f %%",
+        coverage.triangle_coverage_percent
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Surface area coverage: %.2f %%",
+        coverage.area_coverage_percent
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Covered surface area: %.4f m^2 / %.4f m^2",
+        coverage.covered_area_m2,
+        coverage.total_area_m2
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Average TCP-to-STL distance: %.2f mm",
+        coverage.average_nearest_distance_mm
+    );
+
+    RCLCPP_INFO(
+        logger,
+        "Maximum TCP-to-STL distance: %.2f mm",
+        coverage.maximum_nearest_distance_mm
     );
 
     spinner->cancel();
