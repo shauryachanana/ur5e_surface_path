@@ -204,7 +204,7 @@ geometry_msgs::msg::Pose targetPose(const Triangle &triangle){
 
     target_pose.position.x = - (triangle.centreOfTriangle[0] * 0.001f) - (triangle.normal_x * PEN_LENGTH);
     target_pose.position.y = - (triangle.centreOfTriangle[1] * 0.001f) + 0.65f - (triangle.normal_y * PEN_LENGTH);
-    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + (triangle.normal_z * PEN_LENGTH);
+    target_pose.position.z = (triangle.centreOfTriangle[2] * 0.001f) + 0.2f + (triangle.normal_z * PEN_LENGTH);
 
     tf2::Vector3 normal(
         - triangle.normal_x,
@@ -421,7 +421,7 @@ AttemptToReach traceNeighbour(
     //try going to an edge
     target_pose.position.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f) - (previousTriangle.normal_x * PEN_LENGTH);
     target_pose.position.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f - (previousTriangle.normal_y * PEN_LENGTH);
-    target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + (previousTriangle.normal_z * PEN_LENGTH);
+    target_pose.position.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + 0.2f + (previousTriangle.normal_z * PEN_LENGTH);
     //use the orientation of the old triangle to avoid collisions
     target_pose.orientation.x = previousPose.orientation.x;
     target_pose.orientation.y = previousPose.orientation.y;
@@ -441,7 +441,7 @@ AttemptToReach traceNeighbour(
         geometry_msgs::msg::Point edgePenTip;
         edgePenTip.x = - (edgeToPrevTriangle.centreOfEdge[0] * 0.001f);
         edgePenTip.y = - (edgeToPrevTriangle.centreOfEdge[1] * 0.001f) + 0.65f;
-        edgePenTip.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f);
+        edgePenTip.z = (edgeToPrevTriangle.centreOfEdge[2] * 0.001f) + 0.2f;
 
         if(!moveToPointWithPenRotation(
         target_pose,
