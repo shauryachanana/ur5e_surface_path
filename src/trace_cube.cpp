@@ -1003,14 +1003,46 @@ int main(int argc, char** argv)
     // startOperation() plans the complete virtual trajectory.
     // We do NOT want to measure TCP performance here because the
     // real robot is not executing the surface path yet.
+    //
+    // For large meshes, planning can spend a long time backtracking.
+    // The monitor below distinguishes genuine progress from repeated
+    // retry/backtracking behaviour.
     // ============================================================
 
-    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "START PLANNING OPERATION"
     );
-    #endif
+
+
+    std::size_t planningIterations = 0;
+
+    std::size_t previousTracedCount =
+        std::count(
+            traced.begin(),
+            traced.end(),
+            true
+        );
+
+    std::size_t iterationsWithoutProgress = 0;
+
+    /*
+     * Backtracking is expected, especially on a dense curved surface.
+     * Therefore this limit is deliberately generous.
+     *
+     * Planning is stopped only if thousands of consecutive calls to
+     * startOperation() fail to add even one new traced triangle.
+     */
+    const std::size_t MAX_NO_PROGRESS =
+        std::max<std::size_t>(
+            5000,
+            vectorOfTriangles.size() * 4
+        );
+
+    constexpr std::size_t PROGRESS_LOG_INTERVAL = 100;
+
+    const auto planningStart =
+        std::chrono::steady_clock::now();
 
 
     int nextOne =
@@ -1028,6 +1060,129 @@ int main(int argc, char** argv)
         nextOne != -1
     )
     {
+        planningIterations++;
+
+
+        // --------------------------------------------------------
+        // Measure real planning progress.
+        // --------------------------------------------------------
+
+        std::size_t currentTracedCount =
+            std::count(
+                traced.begin(),
+                traced.end(),
+                true
+            );
+
+
+        if(currentTracedCount > previousTracedCount)
+        {
+            // At least one new surface triangle was reached.
+            iterationsWithoutProgress = 0;
+            previousTracedCount = currentTracedCount;
+        }
+        else
+        {
+            // This iteration only retried or backtracked.
+            iterationsWithoutProgress++;
+        }
+
+
+        // --------------------------------------------------------
+        // Print one useful progress message every 100 iterations.
+        // --------------------------------------------------------
+
+        if(
+            planningIterations %
+                PROGRESS_LOG_INTERVAL ==
+            0
+        )
+        {
+            const double percent =
+                100.0 *
+                static_cast<double>(
+                    currentTracedCount
+                ) /
+                static_cast<double>(
+                    vectorOfTriangles.size()
+                );
+
+            const double elapsedSeconds =
+                std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() -
+                    planningStart
+                ).count();
+
+
+            RCLCPP_WARN(
+                logger,
+                "PLANNING: iteration=%zu | "
+                "traced=%zu/%zu (%.2f%%) | "
+                "current triangle=%d | "
+                "pathHistory=%zu | "
+                "execution waypoints=%zu | "
+                "no-progress=%zu | "
+                "elapsed=%.1f s",
+                planningIterations,
+                currentTracedCount,
+                vectorOfTriangles.size(),
+                percent,
+                nextOne,
+                pathHistory.size(),
+                stackOfReachableWaypoints.size(),
+                iterationsWithoutProgress,
+                elapsedSeconds
+            );
+        }
+
+
+        // --------------------------------------------------------
+        // Detect probable endless retry/backtracking behaviour.
+        // --------------------------------------------------------
+
+        if(
+            iterationsWithoutProgress >
+            MAX_NO_PROGRESS
+        )
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Planning stopped: no new triangle was traced "
+                "for %zu consecutive iterations. "
+                "This strongly suggests repeated backtracking "
+                "or retry behaviour.",
+                iterationsWithoutProgress
+            );
+
+            break;
+        }
+
+
+        // --------------------------------------------------------
+        // Protect against a bad index returned by startOperation().
+        // --------------------------------------------------------
+
+        if(
+            nextOne < 0 ||
+            static_cast<std::size_t>(nextOne) >=
+                vectorOfTriangles.size()
+        )
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Planning stopped because startOperation() "
+                "returned invalid triangle index %d",
+                nextOne
+            );
+
+            break;
+        }
+
+
+        // --------------------------------------------------------
+        // Continue planning from the selected next triangle.
+        // --------------------------------------------------------
+
         nextOne =
             startOperation(
                 vectorOfTriangles,
@@ -1037,6 +1192,44 @@ int main(int argc, char** argv)
                 ]
             );
     }
+
+
+    const std::size_t finalTracedCount =
+        std::count(
+            traced.begin(),
+            traced.end(),
+            true
+        );
+
+    const double finalPlanningPercent =
+        100.0 *
+        static_cast<double>(
+            finalTracedCount
+        ) /
+        static_cast<double>(
+            vectorOfTriangles.size()
+        );
+
+    const double totalPlanningSeconds =
+        std::chrono::duration<double>(
+            std::chrono::steady_clock::now() -
+            planningStart
+        ).count();
+
+
+    RCLCPP_WARN(
+        logger,
+        "PLANNING FINISHED: iterations=%zu | "
+        "traced=%zu/%zu (%.2f%%) | "
+        "stored execution waypoints=%zu | "
+        "time=%.1f s",
+        planningIterations,
+        finalTracedCount,
+        vectorOfTriangles.size(),
+        finalPlanningPercent,
+        stackOfReachableWaypoints.size(),
+        totalPlanningSeconds
+    );
 
 
     // ============================================================

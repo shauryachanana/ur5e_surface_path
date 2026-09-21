@@ -148,7 +148,7 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
     moveit_msgs::msg::RobotTrajectory trajectory;
     std::vector<geometry_msgs::msg::Pose> target_poses;
 
-    RCLCPP_ERROR(logger, "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
+    //RCLCPP_ERROR(logger, "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
 
     target_poses.push_back(target_pose);
     double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
@@ -602,9 +602,9 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
 int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle &currentTriangle){
     auto logger = rclcpp::get_logger("startOperation");
 
-    #ifdef DEBUGGER
-    RCLCPP_WARN(logger, "checking if my build is working");
-    #endif
+    // #ifdef DEBUGGER
+    // RCLCPP_WARN(logger, "checking if my build is working");
+    // #endif
 
     int nextToTraceIndex = 0;
     auto result = triangleWithLeastNeighbours(vectorOfTriangles, traced, currentTriangle);
