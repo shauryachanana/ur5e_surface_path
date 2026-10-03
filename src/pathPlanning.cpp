@@ -773,14 +773,27 @@ static bool jumpToTriangle(
     auto current_state_ptr = gripper_group_interface->getCurrentState();
     if(!current_state_ptr)
         return false;
-    moveit::core::RobotState savedState(*current_state_ptr);
 
     if(!moveToPoint(liftedPose(from), from.myIndex, movementDirection::BACKWARDS) ||
        !planOMPLPose(liftedPose(target), target.myIndex) ||
        !moveToPoint(targetPose(target), target.myIndex, movementDirection::FORWARD)){
         while(stackOfReachableWaypoints.size() > reachableSize)
             stackOfReachableWaypoints.pop();
-        gripper_group_interface->setStartState(savedState);
+        // >>> CHANGE START: restore the VIRTUAL start state (end of the last stored trajectory).
+        // getCurrentState() is the real robot pose, which broke the trajectory chain.
+        if(stackOfReachableWaypoints.empty() ||
+           stackOfReachableWaypoints.top().trajectory.joint_trajectory.points.empty()){
+            gripper_group_interface->setStartStateToCurrentState();
+        }else{
+            moveit::core::RobotState virtualState(*current_state_ptr);
+            virtualState.setJointGroupPositions(
+                gripper_group_interface->getName(),
+                stackOfReachableWaypoints.top().trajectory.joint_trajectory.points.back().positions
+            );
+            virtualState.update();
+            gripper_group_interface->setStartState(virtualState);
+        }
+        // <<< CHANGE END
         return false;
     }
 
