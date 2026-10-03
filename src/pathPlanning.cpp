@@ -4,6 +4,9 @@
 
 std::stack<Waypoint> pathHistory;
 std::stack<Waypoint> stackOfReachableWaypoints;
+// >>> CHANGE START: stored-trajectory count after the last real planning action (edge attempt, return or jump); backtracking after it is not needed
+std::size_t lastUsefulWaypointCount = 0;
+// <<< CHANGE END
 extern std::vector<bool> traced;
 std::vector<Triangle> plannedPath;
 
@@ -842,9 +845,12 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
             traced[currentTriangle.myIndex] = true;
             rememberBranchPoint(currentTriangle, vectorOfTriangles, traced);
             nextToTraceIndex = sortedNeighbours[neighbourNumber];
+            lastUsefulWaypointCount = stackOfReachableWaypoints.size(); // CHANGE
         }else if(faildeAttempts >= (int)sortedNeighbours.size() - 1){
+            lastUsefulWaypointCount = stackOfReachableWaypoints.size(); // CHANGE: failed edge attempts and their returns are kept
             int jumpTarget = jumpToNearestBranchPoint(vectorOfTriangles, traced, currentTriangle);
             if(jumpTarget != -1){
+                lastUsefulWaypointCount = stackOfReachableWaypoints.size(); // CHANGE: jump is kept
                 return jumpTarget;
             }
             pathHistory.pop();
@@ -865,6 +871,7 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
         /*if in the current position there are no reachable triangles*/
         int jumpTarget = jumpToNearestBranchPoint(vectorOfTriangles, traced, currentTriangle);
         if(jumpTarget != -1){
+            lastUsefulWaypointCount = stackOfReachableWaypoints.size(); // CHANGE: jump is kept
             return jumpTarget;
         }
         pathHistory.pop();

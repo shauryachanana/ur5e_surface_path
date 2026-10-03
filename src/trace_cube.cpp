@@ -44,6 +44,7 @@ shapes::Mesh* mesh =
 
 extern std::stack<Waypoint> pathHistory;
 extern std::stack<Waypoint> stackOfReachableWaypoints;
+extern std::size_t lastUsefulWaypointCount; // CHANGE
 
 std::vector<bool> traced;
 
@@ -1047,6 +1048,9 @@ int main(int argc, char** argv)
         std::chrono::steady_clock::now();
 
 
+    // CHANGE: everything stored up to here (initial triangle) is useful
+    lastUsefulWaypointCount = stackOfReachableWaypoints.size();
+
     int nextOne =
         startOperation(
             vectorOfTriangles,
@@ -1195,6 +1199,13 @@ int main(int argc, char** argv)
             );
     }
 
+
+    // >>> CHANGE START: drop the final backtracking that only retraces the path after the last real planning action
+    while(stackOfReachableWaypoints.size() > lastUsefulWaypointCount)
+    {
+        stackOfReachableWaypoints.pop();
+    }
+    // <<< CHANGE END
 
     const std::size_t finalTracedCount =
         std::count(
