@@ -1,10 +1,15 @@
 #include "trace_cube.hpp"
 #include <iostream>
+#include <climits>
 
 std::stack<Waypoint> pathHistory;
 std::stack<Waypoint> stackOfReachableWaypoints;
 extern std::vector<bool> traced;
 std::vector<Triangle> plannedPath;
+
+// Traced triangles where there was still an untraced neighbour.
+// Recovery only considers these triangles; it never scans the whole mesh.
+static std::vector<int> branchPoints;
 
 // Distance from tool0 to the pen tip along tool0's local +Z axis.
 // Positions in this file are in meters: 0.05 = 50 mm, 0.01 = 10 mm.
@@ -25,34 +30,48 @@ void init(){
     gripper_group_interface->setMaxAccelerationScalingFactor(1.0);
 }
 
-void goHome(){
+
+void goHome()
+{
     auto logger = rclcpp::get_logger("goGome");
     RCLCPP_WARN(logger, "going home");
 
-    //the initial position (right before the tracing)
     std::vector<double> preferred_joints = {
         -90.0 * M_PI / 180.0,
-        -110 * M_PI / 180.0,
+        -110.0 * M_PI / 180.0,
         -45.0 * M_PI / 180.0,
         -110.0 * M_PI / 180.0,
         -260.0 * M_PI / 180.0,
         -180.0 * M_PI / 180.0
     };
 
-    //sets the joint val as a target but doesnt move yet
-    gripper_group_interface->setJointValueTarget(preferred_joints);
-    
-    moveit::planning_interface::MoveGroupInterface::Plan home_plan;
-  
-    //for the obect created before, call plan which saves the trajectory to reach preferred_joints to home_plan address
-    //not a straight line, arbitrary trajectory
-    auto ok = static_cast<bool>(gripper_group_interface->plan(home_plan));
+    RCLCPP_WARN(logger, "set joint target");
 
-    //if it is reachable, we can and do move to a target joint position
-    if(ok){
-        gripper_group_interface->execute(home_plan);
-        RCLCPP_WARN(logger, "initial position rached");
-    } else{
+    gripper_group_interface->setJointValueTarget(preferred_joints);
+
+    moveit::planning_interface::MoveGroupInterface::Plan home_plan;
+
+    RCLCPP_WARN(logger, "planning");
+
+    // Plan only once, using the existing interface.
+    auto result = gripper_group_interface->plan(home_plan);
+
+    RCLCPP_ERROR(
+        logger,
+        "MoveIt planning result code: %d",
+        result.val);
+
+    if (static_cast<bool>(result)) {
+        RCLCPP_WARN(logger, "planning succeeded; executing home plan");
+
+        auto execution_result = gripper_group_interface->execute(home_plan);
+
+        if (static_cast<bool>(execution_result)) {
+            RCLCPP_WARN(logger, "initial position reached");
+        } else {
+            RCLCPP_ERROR(logger, "home trajectory execution failed");
+        }
+    } else {
         RCLCPP_ERROR(logger, "initial positioning failed");
     }
 }
@@ -142,11 +161,12 @@ void getTCPorientation(double* TCPorientation)
     }
 }
 
-bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir, waypointType waypoint){
+bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir, waypointType waypoint, const std::vector<geometry_msgs::msg::Pose> &viaPoses){
     auto logger = rclcpp::get_logger("moveToPoint");
 
     moveit_msgs::msg::RobotTrajectory trajectory;
-    std::vector<geometry_msgs::msg::Pose> target_poses;
+    //via poses (if any) are visited first, in the same Cartesian path
+    std::vector<geometry_msgs::msg::Pose> target_poses = viaPoses;
 
     //RCLCPP_ERROR(logger, "MOVE TARGET ORIENTATION: x=%f y=%f z=%f w=%f",target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w);
 
@@ -154,7 +174,8 @@ bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, moveme
     double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
 
     //Full Cartesian path achieved
-    if (fraction >= 0.9) {
+    //a jump (via poses) has to be planned completely, a normal move needs 90 %
+    if (fraction >= (viaPoses.empty() ? 0.9 : 0.99)) {
         //PLANNING ONLY — the physical robot is NOT moved here.
         //Advance the virtual start state to the end of this segment so the
         //next planned segment chains from here instead of from the
@@ -408,6 +429,15 @@ bool moveToPointWithPenRotation(
 }
 
 
+// >>> CHANGE START: remember that this exact previous->next attempt already failed, so it is planned (and visited) only once
+static void markAttemptFailed(Triangle& previousTriangle, int neighbourIndex){
+    for(std::size_t i = 0; i < previousTriangle.myNeighbours.size(); i++){
+        if(previousTriangle.myNeighbours[i] == neighbourIndex)
+            previousTriangle.neighbourFailed[i] = true;
+    }
+}
+// <<< CHANGE END
+
 AttemptToReach traceNeighbour(
     Triangle& previousTriangle, 
     Triangle& triangleToTrace, 
@@ -433,6 +463,7 @@ AttemptToReach traceNeighbour(
         RCLCPP_WARN(logger, "edge failed too");
         #endif
         triangleToTrace.unreachableCounter++;
+        markAttemptFailed(previousTriangle, triangleToTrace.myIndex); // CHANGE
         return AttemptToReach::FAILED;
     }else{
         //At the edge, keep the pen tip fixed and rotate the pen so its +Z
@@ -454,6 +485,7 @@ AttemptToReach traceNeighbour(
     );
 
     triangleToTrace.unreachableCounter++;
+    markAttemptFailed(previousTriangle, triangleToTrace.myIndex); // CHANGE
 
     // Remove EDGE only from algorithmic path history.
     // We didn't successfully cross into the neighbour.
@@ -494,6 +526,7 @@ AttemptToReach traceNeighbour(
             #endif
             //if the center is unreachable then we go back to "initial" triangle
             triangleToTrace.unreachableCounter++;
+            markAttemptFailed(previousTriangle, triangleToTrace.myIndex); // CHANGE
             // The center move FAILED, so no triangle waypoint was added
             if(!pathHistory.empty() &&
             pathHistory.top().typeOfWaypoint == waypointType::EDGE){
@@ -562,7 +595,7 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
     for(std::size_t i = 0; i < triangleToTrace.myNeighbours.size(); i++){
         int neighbourIndex = triangleToTrace.myNeighbours[i];
         //if the value stored in an array is a valid one and if the triangles stored was not traced
-        if((neighbourIndex != -1) && (vectorOfTriangles[neighbourIndex].traced == false) && (traced[neighbourIndex] == false)){
+        if((neighbourIndex != -1) && (vectorOfTriangles[neighbourIndex].traced == false) && (traced[neighbourIndex] == false) && !triangleToTrace.neighbourFailed[i]){ // CHANGE: skip already failed attempts
             //valuyes from an array
             validNeighbours.push_back(neighbourIndex);
             //the position of this value
@@ -599,12 +632,184 @@ std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::v
     return {sortedNeighbours, sortedEdgeIndices};
 }
 
+//pen tip height above the surface during a jump [m]
+constexpr double JUMP_LIFT = 0.05;
+constexpr int MAX_JUMP_TRIES = 3;
+
+static geometry_msgs::msg::Pose liftedPose(const Triangle &triangle){
+    geometry_msgs::msg::Pose pose = targetPose(triangle);
+    pose.position.x -= triangle.normal_x * JUMP_LIFT;
+    pose.position.y -= triangle.normal_y * JUMP_LIFT;
+    pose.position.z += triangle.normal_z * JUMP_LIFT;
+    return pose;
+}
+
+static void rememberBranchPoint(
+    const Triangle &triangle,
+    std::vector<Triangle> &vectorOfTriangles,
+    std::vector<bool> &traced)
+{
+    if(triangle.getValidNeighbours(traced, vectorOfTriangles) == 0)
+        return;
+
+    if(std::find(branchPoints.begin(), branchPoints.end(), triangle.myIndex) == branchPoints.end())
+        branchPoints.push_back(triangle.myIndex);
+}
+
+struct BranchCandidate{
+    int triangleIndex;
+    int pathDistance;
+};
+
+static std::vector<BranchCandidate> getBranchCandidates(
+    std::vector<Triangle> &vectorOfTriangles,
+    std::vector<bool> &traced)
+{
+    // pathHistory already contains the surface route that reached the dead end
+    // use that route as the distance metric instead of scanning all mesh triangles.
+    std::unordered_map<int, int> pathDistance;
+    std::stack<Waypoint> historyCopy = pathHistory;
+    int distance = 0;
+
+    while(!historyCopy.empty()){
+        const Waypoint &waypoint = historyCopy.top();
+        if(waypoint.typeOfWaypoint == waypointType::TRIANGLE && waypoint.triangleIndex >= 0){
+            if(pathDistance.find(waypoint.triangleIndex) == pathDistance.end())
+                pathDistance[waypoint.triangleIndex] = distance;
+            distance++;
+        }
+        historyCopy.pop();
+    }
+
+    std::vector<BranchCandidate> candidates;
+    for(int index : branchPoints){
+        // invalid index
+        if(index < 0 || index >= (int)vectorOfTriangles.size())
+            continue;
+
+        Triangle &triangle = vectorOfTriangles[index];
+
+        // no reachable neighbours
+        if(triangle.getValidNeighbours(traced, vectorOfTriangles) == 0)
+            continue;
+        if(triangle.unreachableCounter >= MAX_JUMP_TRIES)
+            continue;
+
+        auto it = pathDistance.find(index);
+        candidates.push_back({index, it == pathDistance.end() ? INT_MAX : it->second});
+    }
+
+    std::sort(candidates.begin(), candidates.end(), [&](const BranchCandidate &a, const BranchCandidate &b){
+        // candidates with a smaller pathDistance come first.
+        if(a.pathDistance != b.pathDistance)
+            return a.pathDistance < b.pathDistance;
+
+        // if two candidates have the same path distance, the one with fewer previous failed attempts is preferred
+        const Triangle &ta = vectorOfTriangles[a.triangleIndex];
+        const Triangle &tb = vectorOfTriangles[b.triangleIndex];
+        return ta.unreachableCounter < tb.unreachableCounter;
+    });
+    // return the sorted candidates
+    return candidates;
+}
+
+static bool planOMPLPose(
+    const geometry_msgs::msg::Pose &targetPoseForPlan,
+    int triangleIndex)
+{
+    gripper_group_interface->setPoseTarget(targetPoseForPlan);
+
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    bool success = static_cast<bool>(gripper_group_interface->plan(plan));
+    gripper_group_interface->clearPoseTargets();
+
+    if(!success || plan.trajectory.joint_trajectory.points.empty())
+        return false;
+
+    auto current_state_ptr = gripper_group_interface->getCurrentState();
+    if(!current_state_ptr)
+        return false;
+
+    moveit::core::RobotState endState(*current_state_ptr);
+    endState.setJointGroupPositions(
+        gripper_group_interface->getName(),
+        plan.trajectory.joint_trajectory.points.back().positions
+    );
+    endState.update();
+    gripper_group_interface->setStartState(endState);
+
+    Waypoint newWaypoint = {
+        targetPoseForPlan,
+        waypointType::TRIANGLE,
+        triangleIndex,
+        plan.trajectory
+    };
+    stackOfReachableWaypoints.push(newWaypoint);
+
+    return true;
+}
+
+static bool jumpToTriangle(
+    const Triangle &from,
+    Triangle &target)
+{
+    // First try the cheap Cartesian version: lift, cross, descend.
+    if(moveToPoint(
+        targetPose(target),
+        target.myIndex,
+        movementDirection::FORWARD,
+        waypointType::TRIANGLE,
+        {liftedPose(from), liftedPose(target)})){
+        return true;
+    }
+
+    // The direct line may cross the mesh (for example around a hook/wall).
+    // Fall back to OMPL for the lifted transit; the mesh in the planning scene
+    // can then determine a collision-free route instead of relying on a magic lift height.
+    const std::size_t reachableSize = stackOfReachableWaypoints.size();
+    auto current_state_ptr = gripper_group_interface->getCurrentState();
+    if(!current_state_ptr)
+        return false;
+    moveit::core::RobotState savedState(*current_state_ptr);
+
+    if(!moveToPoint(liftedPose(from), from.myIndex, movementDirection::BACKWARDS) ||
+       !planOMPLPose(liftedPose(target), target.myIndex) ||
+       !moveToPoint(targetPose(target), target.myIndex, movementDirection::FORWARD)){
+        while(stackOfReachableWaypoints.size() > reachableSize)
+            stackOfReachableWaypoints.pop();
+        gripper_group_interface->setStartState(savedState);
+        return false;
+    }
+
+    return true;
+}
+
+static int jumpToNearestBranchPoint(
+    std::vector<Triangle> &vectorOfTriangles,
+    std::vector<bool> &traced,
+    const Triangle &from)
+{
+    std::vector<BranchCandidate> candidates =
+        getBranchCandidates(vectorOfTriangles, traced);
+
+    for(const BranchCandidate &candidate : candidates){
+        Triangle &target = vectorOfTriangles[candidate.triangleIndex];
+
+        if(jumpToTriangle(from, target)){
+            return target.myIndex;
+        }
+
+        target.unreachableCounter++;
+    }
+
+    return -1;
+}
+
 int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle &currentTriangle){
     auto logger = rclcpp::get_logger("startOperation");
 
-    // #ifdef DEBUGGER
-    // RCLCPP_WARN(logger, "checking if my build is working");
-    // #endif
+    if(pathHistory.empty() && stackOfReachableWaypoints.empty())
+        branchPoints.clear();
 
     int nextToTraceIndex = 0;
     auto result = triangleWithLeastNeighbours(vectorOfTriangles, traced, currentTriangle);
@@ -635,8 +840,13 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
         if(neighbourReachAttempt == AttemptToReach::TRIANGLE_REACHED){
             currentTriangle.traced = true;
             traced[currentTriangle.myIndex] = true;
+            rememberBranchPoint(currentTriangle, vectorOfTriangles, traced);
             nextToTraceIndex = sortedNeighbours[neighbourNumber];
         }else if(faildeAttempts >= (int)sortedNeighbours.size() - 1){
+            int jumpTarget = jumpToNearestBranchPoint(vectorOfTriangles, traced, currentTriangle);
+            if(jumpTarget != -1){
+                return jumpTarget;
+            }
             pathHistory.pop();
             if (pathHistory.size() == 0){
                 return -1;
@@ -653,6 +863,10 @@ int startOperation(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &
         }
     }else{
         /*if in the current position there are no reachable triangles*/
+        int jumpTarget = jumpToNearestBranchPoint(vectorOfTriangles, traced, currentTriangle);
+        if(jumpTarget != -1){
+            return jumpTarget;
+        }
         pathHistory.pop();
         if (pathHistory.size() == 0){
                 return -1;
@@ -969,6 +1183,20 @@ bool executePlannedPath(
                     newPoint.time_from_start
                 ).nanoseconds();
 
+            // >>> CHANGE START: Cartesian path has no timing (all 0), so generate it
+            if(pointIndex > 0 && localTimeNs <= previousLocalTimeNs)
+            {
+                double maxDelta = 0.0;
+                for(std::size_t j = 0; j < newPoint.positions.size(); ++j)
+                {
+                    maxDelta = std::max(maxDelta, std::abs(newPoint.positions[j] - segment.points[pointIndex - 1].positions[j]));
+                }
+                localTimeNs = previousLocalTimeNs + std::max<int64_t>(1000000, static_cast<int64_t>(maxDelta * 1e9)); // 1 rad/s, min 1 ms
+                newPoint.velocities.clear();
+                newPoint.accelerations.clear();
+            }
+            // <<< CHANGE END
+
             /*
              * Make sure time progresses inside the original
              * trajectory.
@@ -976,13 +1204,22 @@ bool executePlannedPath(
             if(pointIndex > 0 &&
                localTimeNs <= previousLocalTimeNs)
             {
-                RCLCPP_ERROR(
-                    logger,
-                    "Non-increasing time inside waypoint %zu "
-                    "at trajectory point %zu",
-                    i,
-                    pointIndex
-                );
+    RCLCPP_ERROR(
+        logger,
+        "Invalid segment timing: waypoint=%zu, type=%d, "
+        "triangle=%d, point=%zu/%zu, previous=%.9f s, "
+        "current=%.9f s, pose=(%.4f, %.4f, %.4f)",
+        i,
+        static_cast<int>(wp.typeOfWaypoint),
+        wp.triangleIndex,
+        pointIndex,
+        segment.points.size(),
+        static_cast<double>(previousLocalTimeNs) / 1e9,
+        static_cast<double>(localTimeNs) / 1e9,
+        wp.pose.position.x,
+        wp.pose.position.y,
+        wp.pose.position.z
+    );
 
                 return false;
             }

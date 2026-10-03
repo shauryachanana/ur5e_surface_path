@@ -73,6 +73,7 @@ struct CoverageResult
 // TRIANGLE AREA
 // ================================================================
 
+//remove
 double triangleAreaM2(const Triangle& t)
 {
     // STL coordinates are in millimetres.
@@ -179,6 +180,7 @@ CoverageResult analyseCoverage(
     // HELPER TO MARK TRIANGLES NEAR TCP
     // ============================================================
 
+//remove
     auto markNearbyTriangles =
         [&](double x, double y, double z)
     {

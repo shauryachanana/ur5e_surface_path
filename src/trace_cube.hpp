@@ -139,16 +139,19 @@ struct Triangle{
     //vars to not trace triangle multiple times
     int unreachableCounter = 0;
     bool traced = false;
+    // CHANGE: neighbourFailed[i] = going from this triangle to myNeighbours[i] was already tried and failed
+    std::vector<bool> neighbourFailed = std::vector<bool>(3, false);
 
     int myIndex = 0;
 
-    int getValidNeighbours(std::vector<bool> &tracedTriangles, const std::vector<Triangle>& vectorOfTriangles){
+    int getValidNeighbours(std::vector<bool> &tracedTriangles, const std::vector<Triangle>& vectorOfTriangles) const{ // CHANGE: const
         int numbOfNeigh = 0;
         for(int i = 0; i<(int)myNeighbours.size(); i++){
             if((myNeighbours[i] != -1) && 
             (vectorOfTriangles[myNeighbours[i]].traced == false) && 
             (tracedTriangles[myNeighbours[i]] == false) &&
-            (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3)){
+            (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3) &&
+            !neighbourFailed[i]){ // CHANGE
                 numbOfNeigh++;
             }
         }
@@ -224,7 +227,7 @@ AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTr
 geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
 float distanceToTCP(Triangle &triangle, double* currentTCP);
-bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE);
+bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
 // std::vector<int> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
 std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
 //converts the (stack-ordered, most-recent-first) planning history into the
