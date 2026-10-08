@@ -17,6 +17,7 @@
 //=======NAMING UTILS========
 using TriangleVec = std::vector<Triangle>;
 using BoolVec = std::vector<bool>;
+using BranchVec = std::vector<BranchCandidate>;
 using Pose = geometry_msgs::msg::Pose;
 using Tip = geometry_msgs::msg::Point;
 using Quaternion - geometry_msgs::msg::Quaternion;
@@ -75,38 +76,40 @@ typedef enum tracingStateMachine_StateId
 {
     tracingStateMachine_StateId_ROOT = 0,
     tracingStateMachine_StateId_ABORTSTATE = 1,
-    tracingStateMachine_StateId_ATTEMPTNEXTCLOSESTSTATE = 2,
-    tracingStateMachine_StateId_EXTRACTPATHSTATE = 3,
-    tracingStateMachine_StateId_GETBRANCHSTATE = 4,
-    tracingStateMachine_StateId_GETDISTANCESTATE = 5,
-    tracingStateMachine_StateId_GETORIENTATIONSTATE = 6,
-    tracingStateMachine_StateId_INITSTATE = 7,
-    tracingStateMachine_StateId_JUMPTOBRANCHPOINTSTATE = 8,
-    tracingStateMachine_StateId_JUMPTOBRANCHSTATE = 9,
-    tracingStateMachine_StateId_JUMPTOTRIANGSTATE = 10,
-    tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE = 11,
-    tracingStateMachine_StateId_LIFTEDPOSESTATE = 12,
-    tracingStateMachine_StateId_PLANOMPLSTATE = 13,
-    tracingStateMachine_StateId_REACHINGSTATE = 14,
-    tracingStateMachine_StateId_GETCLOSESTSTATE = 15,
-    tracingStateMachine_StateId_GETPOSESTATEINREACHING = 16,
-    tracingStateMachine_StateId_MOVESTATEINREACHING = 17,
-    tracingStateMachine_StateId_REACHFAILED = 18,
-    tracingStateMachine_StateId_REMEMBERPOINTSTATE = 19,
-    tracingStateMachine_StateId_STATETOBUILD = 20,
-    tracingStateMachine_StateId_TRACENEIGHBOURSTATE = 21,
-    tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE = 22,
-    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 23,
-    tracingStateMachine_StateId_MOVETOEDGESTATE = 24,
-    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 25,
-    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 26,
-    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 27,
-    tracingStateMachine_StateId_TRIANGGLEEXTRACTIONSTATE = 28
+    tracingStateMachine_StateId_ALLPLANNED = 2,
+    tracingStateMachine_StateId_ATTEMPTNEXTCLOSESTSTATE = 3,
+    tracingStateMachine_StateId_INITSTATE = 4,
+    tracingStateMachine_StateId_JUMPTOBRANCHSTATE = 5,
+    tracingStateMachine_StateId_CHECKSIZESTATE = 6,
+    tracingStateMachine_StateId_FAILEDJUMPSTATE = 7,
+    tracingStateMachine_StateId_GETCANDIDATESSTATE = 8,
+    tracingStateMachine_StateId_JUMPTOTRIANGLESTATE = 9,
+    tracingStateMachine_StateId_FAIL = 10,
+    tracingStateMachine_StateId_FALLBACKPREPSTATE = 11,
+    tracingStateMachine_StateId_LIFTEDPOSERANDOMTRAJSTATE = 12,
+    tracingStateMachine_StateId_LIFTEDPOSESTARIGHTLINESTATE = 13,
+    tracingStateMachine_StateId_MOVEWITHLIFTSTATE = 14,
+    tracingStateMachine_StateId_TARGETPOSESTRAIGHTLINESTATE = 15,
+    tracingStateMachine_StateId_TRIANGSETUPSTATE = 16,
+    tracingStateMachine_StateId_SUCCESSFULJUMPSTATE = 17,
+    tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE = 18,
+    tracingStateMachine_StateId_REACHINGSTATE = 19,
+    tracingStateMachine_StateId_GETCLOSESTSTATE = 20,
+    tracingStateMachine_StateId_GETPOSESTATEINREACHING = 21,
+    tracingStateMachine_StateId_MOVESTATEINREACHING = 22,
+    tracingStateMachine_StateId_REACHFAILED = 23,
+    tracingStateMachine_StateId_TRACENEIGHBOURSTATE = 24,
+    tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE = 25,
+    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 26,
+    tracingStateMachine_StateId_MOVETOEDGESTATE = 27,
+    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 28,
+    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 29,
+    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 30
 } tracingStateMachine_StateId;
 
 enum
 {
-    tracingStateMachine_StateIdCount = 29
+    tracingStateMachine_StateIdCount = 31
 };
 
 
@@ -119,6 +122,7 @@ typedef struct tracingStateMachine_Vars
 {
     TriangleVec vectorOfTriangles; 
         BoolVec traced; 
+    bool noReachableTrianglesLeft;
         Pose target_pose; 
     Pose oldPose;
         Triangle currentTriangle;
@@ -129,12 +133,14 @@ typedef struct tracingStateMachine_Vars
         int chosenVector;
         int closestTriangle; 
         int iterator; 
-        int operationSuccessCatcher; 
+        int opSuccess; 
         size_t desiredVectorSize; 
         size_t size; 
+    auto currentState;
     Tip edgePenTip;
     Quaternion quaternion;
         Vec3d currentTCP; 
+    BranchVec candidates;
         TriangleVec vectorOfDesiredTriangles; 
         TriangleVec singleNeighbourTriangles; 
         TriangleVec doubleNeighbourTriangles;
