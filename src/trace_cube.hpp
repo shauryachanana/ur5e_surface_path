@@ -196,36 +196,10 @@ struct Triangle{
 //during the planning pass and left untouched during execution
 extern std::vector<Triangle> plannedPath;
 
-AttemptToReach traceNeighbour(
-    Triangle& previousTriangle, 
-    Triangle& triangleToTrace, 
-    Edge& edgeToPrevTriangle
-);
-#ifdef POINTCLOUDS
-void triangleExtraction(
-    std::vector<Triangle> &vectorOfTriangles, 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
-);
-#endif
 void triangleExtraction(
     std::vector<Triangle> &vectorOfTriangles
 );
-#ifdef POINTCLOUDS
-void getClosestPoint(
-    pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, 
-    std::vector<int>& pointIdxKNNSearch, 
-    std::vector<float>& pointKNNSquaredDistance
-);
-#endif
 
-// FIXED: Changed vectorOfTriangles parameter to pass by reference (&)
-int startOperation(
-    std::vector<Triangle> &vectorOfTriangles, 
-    std::vector<bool> &traced, 
-    Triangle &triangleToTrace
-);
-
-int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
 float distanceToTCP(Triangle &triangle, double* currentTCP);
 //converts the (stack-ordered, most-recent-first) planning history into the
 //chronological sequence it was produced in, without consuming pathHistory
@@ -238,7 +212,6 @@ bool confirmPathExecution(float coveragePercent);
 //performs no planning/decision logic of its own
 bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints);
 
-void triangleExtraction();
 void init();
 void goHome();
 bool getTCPpose();
@@ -246,18 +219,11 @@ void getTCPorientation(double* TCPorientation);
 void attemptToReachNextClosest();
 void targetPose(const Triangle &triangle);
 int getClosestTriangle();
-float distanceToTCP();
 bool moveToPoint(int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
 bool moveToPointWithPenRotation();
 void triangleWithLeastNeighbours();
-std::vector<Waypoint> extractOrderedPath();
-float computeCoveragePercent();
-bool confirmPathExecution();
-bool executePlannedPath();
 void edgePoseWithOldOrient();
-std::vector<BranchCandidate> getBranchCandidates(std::vector<Triangle> &vectorOfTriangles,std::vector<bool> &traced);
-bool planOMPLPose(const geometry_msgs::msg::Pose &targetPoseForPlan,int triangleIndex);
-bool jumpToTriangle(const Triangle &from,Triangle &target);
-int jumpToNearestBranchPoint(std::vector<Triangle> &vectorOfTriangles,std::vector<bool> &traced,const Triangle &from;)
+void getBranchCandidates();
+bool planOMPLPose();
 
 #endif

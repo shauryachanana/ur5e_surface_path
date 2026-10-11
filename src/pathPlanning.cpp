@@ -453,7 +453,7 @@ void attemptToReachNextClosest(){
             sm.vars.vectorOfDesiredTriangles = sm.vars.vectorOfTriangles;
             break;
     }
-    sm.vars.desiredVectorSize = sm.vars.vectorOfDesiredTriangles.size();
+    sm.vars.size = sm.vars.vectorOfDesiredTriangles.size();
 }
 
 void triangleWithLeastNeighbours(){
@@ -502,12 +502,11 @@ void triangleWithLeastNeighbours(){
     return;
 }
 
-geometry_msgs::msg::Pose liftedPose(const Triangle &triangle){
-    geometry_msgs::msg::Pose pose = targetPose(triangle);
-    pose.position.x -= triangle.normal_x * JUMP_LIFT;
-    pose.position.y -= triangle.normal_y * JUMP_LIFT;
-    pose.position.z += triangle.normal_z * JUMP_LIFT;
-    return pose;
+geometry_msgs::msg::Pose liftedPose(const Triangle triangle){
+    sm.vars.target_pose.position.x -= triangle.normal_x * JUMP_LIFT;
+    sm.vars.target_pose.position.y -= triangle.normal_y * JUMP_LIFT;
+    sm.vars.target_pose.position.z += triangle.normal_z * JUMP_LIFT;
+    return sm.vars.target_pose;
 }
 
 static void rememberBranchPoint()
@@ -524,10 +523,10 @@ struct BranchCandidate{
     int pathDistance;
 };
 
-std::vector<BranchCandidate> getBranchCandidates(
-    std::vector<Triangle> &vectorOfTriangles,
-    std::vector<bool> &traced)
+void getBranchCandidates()
 {
+    sm.vars.candidates.clear();
+
     // pathHistory already contains the surface route that reached the dead end
     // use that route as the distance metric instead of scanning all mesh triangles.
     std::unordered_map<int, int> pathDistance;
@@ -544,56 +543,48 @@ std::vector<BranchCandidate> getBranchCandidates(
         historyCopy.pop();
     }
 
-    std::vector<BranchCandidate> candidates;
     for(int index : branchPoints){
         // invalid index
-        if(index < 0 || index >= (int)vectorOfTriangles.size())
+        if(index < 0 || index >= (int)sm.vars.vectorOfTriangles.size())
             continue;
 
-        Triangle &triangle = vectorOfTriangles[index];
+        Triangle &triangle = sm.vars.vectorOfTriangles[index];
 
         // no reachable neighbours
-        if(triangle.getValidNeighbours(traced, vectorOfTriangles) == 0)
+        if(triangle.getValidNeighbours() == 0)
             continue;
         if(triangle.unreachableCounter >= MAX_JUMP_TRIES)
             continue;
 
         auto it = pathDistance.find(index);
-        candidates.push_back({index, it == pathDistance.end() ? INT_MAX : it->second});
+        sm.vars.candidates.push_back({index, it == pathDistance.end() ? INT_MAX : it->second});
     }
 
-    std::sort(candidates.begin(), candidates.end(), [&](const BranchCandidate &a, const BranchCandidate &b){
+    std::sort(sm.vars.candidates.begin(), sm.vars.candidates.end(), [&](const BranchCandidate &a, const BranchCandidate &b){
         // candidates with a smaller pathDistance come first.
         if(a.pathDistance != b.pathDistance)
             return a.pathDistance < b.pathDistance;
 
         // if two candidates have the same path distance, the one with fewer previous failed attempts is preferred
-        const Triangle &ta = vectorOfTriangles[a.triangleIndex];
-        const Triangle &tb = vectorOfTriangles[b.triangleIndex];
+        const Triangle &ta = sm.vars.vectorOfTriangles[a.triangleIndex];
+        const Triangle &tb = sm.vars.vectorOfTriangles[b.triangleIndex];
         return ta.unreachableCounter < tb.unreachableCounter;
     });
-    // return the sorted candidates
-    return candidates;
+
+    return;
 }
 
-bool planOMPLPose(
-    const geometry_msgs::msg::Pose &targetPoseForPlan,
-    int triangleIndex)
-{
-    gripper_group_interface->setPoseTarget(targetPoseForPlan);
+bool planOMPLPose(){
+    gripper_group_interface->setPoseTarget(sm.vars.target_pose);
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     bool success = static_cast<bool>(gripper_group_interface->plan(plan));
     gripper_group_interface->clearPoseTargets();
 
-    if(!success || plan.trajectory.joint_trajectory.points.empty())
+    if(!success || plan.trajectory.joint_trajectory.points.empty() || sm.vars.currentState == nullptr)
         return false;
 
-    auto current_state_ptr = gripper_group_interface->getCurrentState();
-    if(!current_state_ptr)
-        return false;
-
-    moveit::core::RobotState endState(*current_state_ptr);
+    moveit::core::RobotState endState(*sm.vars.currentState);
     endState.setJointGroupPositions(
         gripper_group_interface->getName(),
         plan.trajectory.joint_trajectory.points.back().positions
@@ -602,71 +593,14 @@ bool planOMPLPose(
     gripper_group_interface->setStartState(endState);
 
     Waypoint newWaypoint = {
-        targetPoseForPlan,
+        sm.vars.target_pose,
         waypointType::TRIANGLE,
-        triangleIndex,
+        sm.vars.currentTriangle.myIndex,
         plan.trajectory
     };
     stackOfReachableWaypoints.push(newWaypoint);
 
     return true;
-}
-
-bool jumpToTriangle(
-    const Triangle &from,
-    Triangle &target)
-{
-    // First try the cheap Cartesian version: lift, cross, descend.
-    if(moveToPoint(
-        targetPose(target),
-        target.myIndex,
-        movementDirection::FORWARD,
-        waypointType::TRIANGLE,
-        {liftedPose(from), liftedPose(target)}))
-    {
-        return true;
-    }
-
-    // The direct line may cross the mesh (for example around a hook/wall).
-    // Fall back to OMPL for the lifted transit; the mesh in the planning scene
-    // can then determine a collision-free route instead of relying on a magic lift height.
-    const std::size_t reachableSize = stackOfReachableWaypoints.size();
-    auto current_state_ptr = gripper_group_interface->getCurrentState();
-    if(!current_state_ptr)
-        return false;
-    moveit::core::RobotState savedState(*current_state_ptr);
-
-    if(!moveToPoint(liftedPose(from), from.myIndex, movementDirection::BACKWARDS) ||
-       !planOMPLPose(liftedPose(target), target.myIndex) ||
-       !moveToPoint(targetPose(target), target.myIndex, movementDirection::FORWARD)){
-        while(stackOfReachableWaypoints.size() > reachableSize)
-            stackOfReachableWaypoints.pop();
-        gripper_group_interface->setStartState(savedState);
-        return false;
-    }
-
-    return true;
-}
-
-int jumpToNearestBranchPoint(
-    std::vector<Triangle> &vectorOfTriangles,
-    std::vector<bool> &traced,
-    const Triangle &from)
-{
-    std::vector<BranchCandidate> candidates =
-        getBranchCandidates(vectorOfTriangles, traced);
-
-    for(const BranchCandidate &candidate : candidates){
-        Triangle &target = vectorOfTriangles[candidate.triangleIndex];
-
-        if(jumpToTriangle(from, target)){
-            return target.myIndex;
-        }
-
-        target.unreachableCounter++;
-    }
-
-    return -1;
 }
 
 std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy){

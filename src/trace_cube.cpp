@@ -948,7 +948,7 @@ int main(int argc, char** argv)
     tracingStateMachine_ctor(&sm);    // must be called first
     tracingStateMachine_start(&sm);   // enters the initial state
 
-    while(rclcpp::ok() && !sm.vars.isExited){
+    while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning){
         tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
     }
 

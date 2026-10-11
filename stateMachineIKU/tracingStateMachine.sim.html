@@ -407,11 +407,11 @@ state jumpToBranchState {
 
         getCandidatesState : getCandidatesState
 
-        getCandidatesState : enter / #123;  #125;
+        getCandidatesState : enter / #123; candidates = getBranchCandidates()#59; #125;
 
-        getCandidatesState : do / #123; candidates = getBranchCandidates()#59; #125;
+        getCandidatesState : do / #123; candidateSize = candidates.size()#59; #125;
 
-        getCandidatesState : exit / #123; iterator = -1#59; #125;
+        getCandidatesState : exit / #123; jumpIterator = 0#59; #125;
 
         state jumpToTriangleState {
 
@@ -419,9 +419,9 @@ state jumpToBranchState {
 
                 moveWithLiftState : moveWithLiftState
 
-                moveWithLiftState : enter / #123; targetPose(target)#59; #125;
+                moveWithLiftState : enter / #123; targetPose(currentTriangle)#59; #125;
 
-                moveWithLiftState : do / #123; opSuccess = \nmoverToPoint(\ntarget_pose, \ntarget.myIndex,\nmovementDirection#58#59;#58#59;FORWARD, \nwaypointType#58#59;#58#59;TRIANGLE,\n#123;liftedPose(previousTriangle), liftedPose(target)#125;\n)#59; #125;
+                moveWithLiftState : do / #123; opSuccess = \nmoverToPoint(\ncurrentTriangle.myIndex,\nmovementDirection#58#59;#58#59;FORWARD, \nwaypointType#58#59;#58#59;TRIANGLE,\n#123;liftedPose(previousTriangle), liftedPose(currentTriangle)#125;\n)#59; #125;
 
                 moveWithLiftState : exit / #123;  #125;
 
@@ -429,9 +429,9 @@ state jumpToBranchState {
 
                 triangSetupState : triangSetupState
 
-                triangSetupState : enter / #123; iterator++#59; #125;
+                triangSetupState : enter / #123;  #125;
 
-                triangSetupState : do / #123; previousTriangle = currentTriangle#59;\ntarget = vectorOfTriangles[candidates[iterator]]#59; #125;
+                triangSetupState : do / #123; previousTriangle = currentTriangle#59;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]]#59; #125;
 
                 triangSetupState : exit / #123;  #125;
 
@@ -439,9 +439,9 @@ state jumpToBranchState {
 
                 liftedPoseStarightLineState : liftedPoseStarightLineState
 
-                liftedPoseStarightLineState : enter / #123; moveit#58#59;#58#59;core#58#59;#58#59;RobotState savedState(*current_state_ptr)#59;\ntarget_pose = liftedPose(previousTriangle)#59; #125;
+                liftedPoseStarightLineState : enter / #123; moveit#58#59;#58#59;core#58#59;#58#59;RobotState savedState(*currentState)#59;\ntarget_pose = liftedPose(previousTriangle)#59; #125;
 
-                liftedPoseStarightLineState : do / #123; opSuccess = moveToPoint(\ntarget_pose, \npreviousTriangle.myIndex, \nmovementDirection#58#59;#58#59;BACKWARDS\n)#59; #125;
+                liftedPoseStarightLineState : do / #123; opSuccess = moveToPoint(\npreviousTriangle.myIndex, \nmovementDirection#58#59;#58#59;BACKWARDS\n)#59; #125;
 
                 liftedPoseStarightLineState : exit / #123;  #125;
 
@@ -451,7 +451,7 @@ state jumpToBranchState {
 
                 liftedPoseRandomTrajState : enter / #123; target_pose = liftedPose(currentTriangle)#59; #125;
 
-                liftedPoseRandomTrajState : do / #123; opSuccess = planOMPLPose(\ntarget_pose, \ncurrentTriangle.myIndex\n)#59; #125;
+                liftedPoseRandomTrajState : do / #123; opSuccess = planOMPLPose()#59; #125;
 
                 liftedPoseRandomTrajState : exit / #123;  #125;
 
@@ -461,7 +461,7 @@ state jumpToBranchState {
 
                 targetPoseStraightLineState : enter / #123; targetPose(currentTriangle)#59; #125;
 
-                targetPoseStraightLineState : do / #123; oparationSuccessCatcher = moveToPoint(\ntarget_pose, \ncurrentTriangle.myIndex, \nmovementDirection#58#59;#58#59;FORWARD\n)#59; #125;
+                targetPoseStraightLineState : do / #123; oparationSuccessCatcher = moveToPoint(\ncurrentTriangle.myIndex, \nmovementDirection#58#59;#58#59;FORWARD\n)#59; #125;
 
                 targetPoseStraightLineState : exit / #123;  #125;
 
@@ -473,7 +473,7 @@ state jumpToBranchState {
 
                 fallbackPrepState : do / #123; currentState = gripper_group_interface->getCurrentState()#59; #125;
 
-                fallbackPrepState : exit / #123; if(!currentState)#123;\nopSuccess = 0#59;#125; #125;
+                fallbackPrepState : exit / #123;  #125;
 
                 fail
 
@@ -485,21 +485,11 @@ state jumpToBranchState {
 
         failedJumpState : failedJumpState
 
-        failedJumpState : enter / #123; target.unreachableCounter++#59; #125;
+        failedJumpState : enter / #123; currentTriangle.unreachableCounter++#59; #125;
 
         failedJumpState : do / #123; opSuccess = clearHistoryGoBack()#59; #125;
 
-        failedJumpState : exit / #123;  #125;
-
-        successfulJumpState
-
-        successfulJumpState : successfulJumpState
-
-        successfulJumpState : enter / #123;  #125;
-
-        successfulJumpState : do / #123; currentTriangle = target#59; #125;
-
-        successfulJumpState : exit / #123;  #125;
+        failedJumpState : exit / #123; jumpIterator++#59; #125;
 
         checkSizeState
 
@@ -512,6 +502,14 @@ state jumpToBranchState {
         checkSizeState : exit / #123;  #125;
 
         state jumpToBranchState.(ChoicePoint)() <<choice>>
+
+        succ
+
+        succ : succ
+
+        iter
+
+        iter : iter
 
 }
 
@@ -527,7 +525,7 @@ allPlanned : exit / #123;  #125;
 
 leastNeighboursSearchState --> moveToEdgeState : do [!sortedNeighbours.empty() &&\n!sortedEdges.empty() &&\nopSuccess]
 
-leastNeighboursSearchState --> getCandidatesState : do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess]
+leastNeighboursSearchState --> getCandidatesState : do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] / #123; jumpIterator = 0 #125;
 
 leastNeighboursSearchState --> allPlanned : do [!opSuccess]
 
@@ -551,7 +549,7 @@ moveStateInReaching --> reachFailed : do [!opSuccess]
 
 moveStateInReaching --> attemptNextClosestState : else
 
-reachFailed --> getClosestState : do [iterator < \ndesiredVectorSize]
+reachFailed --> getClosestState : do [iterator < size]
 
 reachFailed --> attemptNextClosestState : do [else]
 
@@ -561,7 +559,7 @@ moveToEdgeState --> rotateAroundEdgeState : do [opSuccess]
 
 moveToEdgeState --> updValsOnFailState : do [else]
 
-moveToEdgeState --> getCandidatesState : do [iterator > ((int)sortedNeighbours.size() - 1)]
+moveToEdgeState --> getCandidatesState : do [iterator > ((int)sortedNeighbours.size() - 1)] / #123; jumpIterator = 0 #125;
 
 popHistroryAndMoveBackState --> updValsOnFailState : do
 
@@ -581,37 +579,41 @@ getCandidatesState --> triangSetupState : do
 
 moveWithLiftState --> fallbackPrepState : do [!opSuccess]
 
-moveWithLiftState --> successfulJumpState : do [else]
+moveWithLiftState --> succ : else
 
 triangSetupState --> moveWithLiftState : do
 
-liftedPoseStarightLineState --> liftedPoseRandomTrajState : do [else]
+liftedPoseStarightLineState --> liftedPoseRandomTrajState : else
 
 liftedPoseStarightLineState --> fail : do [!opSuccess]
 
-liftedPoseRandomTrajState --> targetPoseStraightLineState : do [else]
+liftedPoseRandomTrajState --> targetPoseStraightLineState : else
 
 liftedPoseRandomTrajState --> fail : do [!opSuccess]
 
 targetPoseStraightLineState --> fail : do [!opSuccess]
 
-targetPoseStraightLineState --> successfulJumpState : do [else]
+targetPoseStraightLineState --> succ : else
 
-fallbackPrepState --> liftedPoseStarightLineState : do [else]
+fallbackPrepState --> liftedPoseStarightLineState : else
 
-fallbackPrepState --> leastNeighboursSearchState : do [!currentState]
+fallbackPrepState --> iter : do [!currentState] / #123; jumpIterator++ #125;
 
 fail --> jumpToBranchState.(ChoicePoint)() : do
 
-failedJumpState --> leastNeighboursSearchState : do
-
-successfulJumpState --> leastNeighboursSearchState : do
+failedJumpState --> iter : do
 
 checkSizeState --> jumpToBranchState.(ChoicePoint)() : do
 
-jumpToBranchState.(ChoicePoint)() --> failedJumpState : [else]
+jumpToBranchState.(ChoicePoint)() --> failedJumpState : else
 
 jumpToBranchState.(ChoicePoint)() --> checkSizeState : [stackOfReachableWaypoints.size() > size]
+
+succ --> leastNeighboursSearchState : do
+
+iter --> triangSetupState : do [jumpIterator < candidateSize]
+
+iter --> leastNeighboursSearchState : do [else] / #123; opSuccess = 0 #125;
 
 
 
@@ -680,32 +682,33 @@ evaluateGuard = null;
         CHECKSIZESTATE : 6,
         FAILEDJUMPSTATE : 7,
         GETCANDIDATESSTATE : 8,
-        JUMPTOTRIANGLESTATE : 9,
-        FAIL : 10,
-        FALLBACKPREPSTATE : 11,
-        LIFTEDPOSERANDOMTRAJSTATE : 12,
-        LIFTEDPOSESTARIGHTLINESTATE : 13,
-        MOVEWITHLIFTSTATE : 14,
-        TARGETPOSESTRAIGHTLINESTATE : 15,
-        TRIANGSETUPSTATE : 16,
-        SUCCESSFULJUMPSTATE : 17,
-        LEASTNEIGHBOURSSEARCHSTATE : 18,
-        REACHINGSTATE : 19,
-        GETCLOSESTSTATE : 20,
-        GETPOSESTATEINREACHING : 21,
-        MOVESTATEINREACHING : 22,
-        REACHFAILED : 23,
-        TRACENEIGHBOURSTATE : 24,
-        FINISHTRANSBETWEENTRIANGLESSTATE : 25,
-        MOVEFROMEDGESTATE : 26,
-        MOVETOEDGESTATE : 27,
-        POPHISTRORYANDMOVEBACKSTATE : 28,
-        ROTATEAROUNDEDGESTATE : 29,
-        UPDVALSONFAILSTATE : 30,
+        ITER : 9,
+        JUMPTOTRIANGLESTATE : 10,
+        FAIL : 11,
+        FALLBACKPREPSTATE : 12,
+        LIFTEDPOSERANDOMTRAJSTATE : 13,
+        LIFTEDPOSESTARIGHTLINESTATE : 14,
+        MOVEWITHLIFTSTATE : 15,
+        TARGETPOSESTRAIGHTLINESTATE : 16,
+        TRIANGSETUPSTATE : 17,
+        SUCC : 18,
+        LEASTNEIGHBOURSSEARCHSTATE : 19,
+        REACHINGSTATE : 20,
+        GETCLOSESTSTATE : 21,
+        GETPOSESTATEINREACHING : 22,
+        MOVESTATEINREACHING : 23,
+        REACHFAILED : 24,
+        TRACENEIGHBOURSTATE : 25,
+        FINISHTRANSBETWEENTRIANGLESSTATE : 26,
+        MOVEFROMEDGESTATE : 27,
+        MOVETOEDGESTATE : 28,
+        POPHISTRORYANDMOVEBACKSTATE : 29,
+        ROTATEAROUNDEDGESTATE : 30,
+        UPDVALSONFAILSTATE : 31,
     }
     static { Object.freeze(this.StateId); }
     
-    static StateIdCount = 31;
+    static StateIdCount = 32;
     static { Object.freeze(this.StateIdCount); }
     
     // Used internally by state machine. Feel free to inspect, but don't modify.
@@ -794,6 +797,11 @@ evaluateGuard = null;
                 this.#GETCANDIDATESSTATE_do(); 
                 break;
             
+            // STATE: iter
+            case tracingStateMachine.StateId.ITER:
+                this.#ITER_do(); 
+                break;
+            
             // STATE: jumpToTriangleState
             case tracingStateMachine.StateId.JUMPTOTRIANGLESTATE:
                 // state and ancestors have no handler for `do` event.
@@ -834,9 +842,9 @@ evaluateGuard = null;
                 this.#TRIANGSETUPSTATE_do(); 
                 break;
             
-            // STATE: successfulJumpState
-            case tracingStateMachine.StateId.SUCCESSFULJUMPSTATE:
-                this.#SUCCESSFULJUMPSTATE_do(); 
+            // STATE: succ
+            case tracingStateMachine.StateId.SUCC:
+                this.#SUCC_do(); 
                 break;
             
             // STATE: leastNeighboursSearchState
@@ -931,6 +939,8 @@ evaluateGuard = null;
                 
                 case tracingStateMachine.StateId.GETCANDIDATESSTATE: this.#GETCANDIDATESSTATE_exit(); break;
                 
+                case tracingStateMachine.StateId.ITER: this.#ITER_exit(); break;
+                
                 case tracingStateMachine.StateId.JUMPTOTRIANGLESTATE: this.#JUMPTOTRIANGLESTATE_exit(); break;
                 
                 case tracingStateMachine.StateId.FAIL: this.#FAIL_exit(); break;
@@ -947,7 +957,7 @@ evaluateGuard = null;
                 
                 case tracingStateMachine.StateId.TRIANGSETUPSTATE: this.#TRIANGSETUPSTATE_exit(); break;
                 
-                case tracingStateMachine.StateId.SUCCESSFULJUMPSTATE: this.#SUCCESSFULJUMPSTATE_exit(); break;
+                case tracingStateMachine.StateId.SUCC: this.#SUCC_exit(); break;
                 
                 case tracingStateMachine.StateId.LEASTNEIGHBOURSSEARCHSTATE: this.#LEASTNEIGHBOURSSEARCHSTATE_exit(); break;
                 
@@ -1303,13 +1313,13 @@ evaluateGuard = null;
     #jumpToBranchState_ChoicePoint__transition()
     {
         // jumpToBranchState.<ChoicePoint>() behavior
-        // uml: [this.tracer?.log("🛡️ User evaluating guard: " + "stackOfReachableWaypoints.size() > size") || this.evaluateGuard("jumpToBranchState.<ChoicePoint>()","[stackOfReachableWaypoints.size() > size] TransitionTo(checkSizeState)")] / { this.tracer?.edgeTransition("edge43"); } TransitionTo(checkSizeState)
+        // uml: [this.tracer?.log("🛡️ User evaluating guard: " + "stackOfReachableWaypoints.size() > size") || this.evaluateGuard("jumpToBranchState.<ChoicePoint>()","[stackOfReachableWaypoints.size() > size] TransitionTo(checkSizeState)")] / { this.tracer?.edgeTransition("edge42"); } TransitionTo(checkSizeState)
         if (this.tracer?.log("🛡️ User evaluating guard: " + "stackOfReachableWaypoints.size() > size") || this.evaluateGuard("jumpToBranchState.<ChoicePoint>()","[stackOfReachableWaypoints.size() > size] TransitionTo(checkSizeState)"))
         {
             // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition). Already at LCA, no exiting required.
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge43");`.
-            this.tracer?.edgeTransition("edge43");
+            // Step 2: Transition action: `this.tracer?.edgeTransition("edge42");`.
+            this.tracer?.edgeTransition("edge42");
             
             // Step 3: Enter/move towards transition target `checkSizeState`.
             this.#CHECKSIZESTATE_enter();
@@ -1319,12 +1329,12 @@ evaluateGuard = null;
         } // end of behavior for jumpToBranchState.<ChoicePoint>()
         
         // jumpToBranchState.<ChoicePoint>() behavior
-        // uml: else / { this.tracer?.edgeTransition("edge42"); } TransitionTo(failedJumpState)
+        // uml: else / { this.tracer?.edgeTransition("edge41"); } TransitionTo(failedJumpState)
         {
             // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition). Already at LCA, no exiting required.
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge42");`.
-            this.tracer?.edgeTransition("edge42");
+            // Step 2: Transition action: `this.tracer?.edgeTransition("edge41");`.
+            this.tracer?.edgeTransition("edge41");
             
             // Step 3: Enter/move towards transition target `failedJumpState`.
             this.#FAILEDJUMPSTATE_enter();
@@ -1385,13 +1395,13 @@ evaluateGuard = null;
         } // end of behavior for checkSizeState
         
         // checkSizeState behavior
-        // uml: do / { this.tracer?.edgeTransition("edge41"); } TransitionTo(jumpToBranchState.<ChoicePoint>())
+        // uml: do / { this.tracer?.edgeTransition("edge40"); } TransitionTo(jumpToBranchState.<ChoicePoint>())
         {
             // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
             this.#CHECKSIZESTATE_exit();
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge41");`.
-            this.tracer?.edgeTransition("edge41");
+            // Step 2: Transition action: `this.tracer?.edgeTransition("edge40");`.
+            this.tracer?.edgeTransition("edge40");
             
             // Step 3: Enter/move towards transition target `jumpToBranchState.<ChoicePoint>()`.
             // jumpToBranchState.<ChoicePoint>() is a pseudo state and cannot have an `enter` trigger.
@@ -1421,19 +1431,20 @@ evaluateGuard = null;
         } // end of behavior for failedJumpState
         
         // failedJumpState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "target.unreachableCounter++;"); }
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle.unreachableCounter++;"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "target.unreachableCounter++;");`
-            this.tracer?.log("⚡ FSM would execute action: " + "target.unreachableCounter++;");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle.unreachableCounter++;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle.unreachableCounter++;");
         } // end of behavior for failedJumpState
     }
     
     #FAILEDJUMPSTATE_exit()
     {
         // failedJumpState behavior
-        // uml: exit
+        // uml: exit / { this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++;"); }
         {
-            // Step 1: execute action ``
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++;");
         } // end of behavior for failedJumpState
         
         // failedJumpState behavior
@@ -1456,16 +1467,16 @@ evaluateGuard = null;
         } // end of behavior for failedJumpState
         
         // failedJumpState behavior
-        // uml: do / { this.tracer?.edgeTransition("edge39"); } TransitionTo(leastNeighboursSearchState)
+        // uml: do / { this.tracer?.edgeTransition("edge39"); } TransitionTo(iter)
         {
-            // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
-            this.#exitUpToStateHandler(tracingStateMachine.StateId.ROOT);
+            // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
+            this.#FAILEDJUMPSTATE_exit();
             
             // Step 2: Transition action: `this.tracer?.edgeTransition("edge39");`.
             this.tracer?.edgeTransition("edge39");
             
-            // Step 3: Enter/move towards transition target `leastNeighboursSearchState`.
-            this.#LEASTNEIGHBOURSSEARCHSTATE_enter();
+            // Step 3: Enter/move towards transition target `iter`.
+            this.#ITER_enter();
             
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
@@ -1491,19 +1502,20 @@ evaluateGuard = null;
         } // end of behavior for getCandidatesState
         
         // getCandidatesState behavior
-        // uml: enter
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();"); }
         {
-            // Step 1: execute action ``
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();");`
+            this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();");
         } // end of behavior for getCandidatesState
     }
     
     #GETCANDIDATESSTATE_exit()
     {
         // getCandidatesState behavior
-        // uml: exit / { this.tracer?.log("⚡ FSM would execute action: " + "iterator = -1;"); }
+        // uml: exit / { this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0;"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "iterator = -1;");`
-            this.tracer?.log("⚡ FSM would execute action: " + "iterator = -1;");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0;");
         } // end of behavior for getCandidatesState
         
         // getCandidatesState behavior
@@ -1519,10 +1531,10 @@ evaluateGuard = null;
     #GETCANDIDATESSTATE_do()
     {
         // getCandidatesState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "candidateSize = candidates.size();"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();");`
-            this.tracer?.log("⚡ FSM would execute action: " + "candidates = getBranchCandidates();");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "candidateSize = candidates.size();");`
+            this.tracer?.log("⚡ FSM would execute action: " + "candidateSize = candidates.size();");
         } // end of behavior for getCandidatesState
         
         // getCandidatesState behavior
@@ -1541,6 +1553,74 @@ evaluateGuard = null;
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
         } // end of behavior for getCandidatesState
+        
+        // No ancestor handles this event.
+    }
+    
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // event handlers for state ITER
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    #ITER_enter()
+    {
+        this.stateId = tracingStateMachine.StateId.ITER;
+        
+        // iter behavior
+        // uml: enter / { this.tracer?.enterState('iter'); }
+        {
+            // Step 1: execute action `this.tracer?.enterState('iter');`
+            this.tracer?.enterState('iter');
+        } // end of behavior for iter
+    }
+    
+    #ITER_exit()
+    {
+        // iter behavior
+        // uml: exit / { this.tracer?.exitState('iter'); }
+        {
+            // Step 1: execute action `this.tracer?.exitState('iter');`
+            this.tracer?.exitState('iter');
+        } // end of behavior for iter
+        
+        this.stateId = tracingStateMachine.StateId.JUMPTOBRANCHSTATE;
+    }
+    
+    #ITER_do()
+    {
+        // iter behavior
+        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "jumpIterator < candidateSize") || this.evaluateGuard("iter","do [jumpIterator < candidateSize] TransitionTo(triangSetupState)")] / { this.tracer?.edgeTransition("edge44"); } TransitionTo(triangSetupState)
+        if (this.tracer?.log("🛡️ User evaluating guard: " + "jumpIterator < candidateSize") || this.evaluateGuard("iter","do [jumpIterator < candidateSize] TransitionTo(triangSetupState)"))
+        {
+            // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
+            this.#ITER_exit();
+            
+            // Step 2: Transition action: `this.tracer?.edgeTransition("edge44");`.
+            this.tracer?.edgeTransition("edge44");
+            
+            // Step 3: Enter/move towards transition target `triangSetupState`.
+            this.#JUMPTOTRIANGLESTATE_enter();
+            this.#TRIANGSETUPSTATE_enter();
+            
+            // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
+            return;
+        } // end of behavior for iter
+        
+        // iter behavior
+        // uml: else do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = 0");this.tracer?.edgeTransition("edge45"); } TransitionTo(leastNeighboursSearchState)
+        {
+            // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
+            this.#exitUpToStateHandler(tracingStateMachine.StateId.ROOT);
+            
+            // Step 2: Transition action: `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = 0");this.tracer?.edgeTransition("edge45");`.
+            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = 0");this.tracer?.edgeTransition("edge45");
+            
+            // Step 3: Enter/move towards transition target `leastNeighboursSearchState`.
+            this.#LEASTNEIGHBOURSSEARCHSTATE_enter();
+            
+            // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
+            return;
+        } // end of behavior for iter
         
         // No ancestor handles this event.
     }
@@ -1652,10 +1732,9 @@ evaluateGuard = null;
     #FALLBACKPREPSTATE_exit()
     {
         // fallbackPrepState behavior
-        // uml: exit / { this.tracer?.log("⚡ FSM would execute action: " + "if(!currentState){\nopSuccess = 0;}"); }
+        // uml: exit
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "if(!currentState){\nopSuccess = 0;}");`
-            this.tracer?.log("⚡ FSM would execute action: " + "if(!currentState){\nopSuccess = 0;}");
+            // Step 1: execute action ``
         } // end of behavior for fallbackPrepState
         
         // fallbackPrepState behavior
@@ -1678,17 +1757,17 @@ evaluateGuard = null;
         } // end of behavior for fallbackPrepState
         
         // fallbackPrepState behavior
-        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "!currentState") || this.evaluateGuard("fallbackPrepState","do [!currentState] TransitionTo(leastNeighboursSearchState)")] / { this.tracer?.edgeTransition("edge37"); } TransitionTo(leastNeighboursSearchState)
-        if (this.tracer?.log("🛡️ User evaluating guard: " + "!currentState") || this.evaluateGuard("fallbackPrepState","do [!currentState] TransitionTo(leastNeighboursSearchState)"))
+        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "!currentState") || this.evaluateGuard("fallbackPrepState","do [!currentState] / { jumpIterator++ } TransitionTo(iter)")] / { this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++");this.tracer?.edgeTransition("edge37"); } TransitionTo(iter)
+        if (this.tracer?.log("🛡️ User evaluating guard: " + "!currentState") || this.evaluateGuard("fallbackPrepState","do [!currentState] / { jumpIterator++ } TransitionTo(iter)"))
         {
-            // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
-            this.#exitUpToStateHandler(tracingStateMachine.StateId.ROOT);
+            // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
+            this.#exitUpToStateHandler(tracingStateMachine.StateId.JUMPTOBRANCHSTATE);
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge37");`.
-            this.tracer?.edgeTransition("edge37");
+            // Step 2: Transition action: `this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++");this.tracer?.edgeTransition("edge37");`.
+            this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator++");this.tracer?.edgeTransition("edge37");
             
-            // Step 3: Enter/move towards transition target `leastNeighboursSearchState`.
-            this.#LEASTNEIGHBOURSSEARCHSTATE_enter();
+            // Step 3: Enter/move towards transition target `iter`.
+            this.#ITER_enter();
             
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
@@ -1758,10 +1837,10 @@ evaluateGuard = null;
     #LIFTEDPOSERANDOMTRAJSTATE_do()
     {
         // liftedPoseRandomTrajState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose(\ntarget_pose, \ncurrentTriangle.myIndex\n);"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose();"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose(\ntarget_pose, \ncurrentTriangle.myIndex\n);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose(\ntarget_pose, \ncurrentTriangle.myIndex\n);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose();");`
+            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = planOMPLPose();");
         } // end of behavior for liftedPoseRandomTrajState
         
         // liftedPoseRandomTrajState behavior
@@ -1817,10 +1896,10 @@ evaluateGuard = null;
         } // end of behavior for liftedPoseStarightLineState
         
         // liftedPoseStarightLineState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*current_state_ptr);\ntarget_pose = liftedPose(previousTriangle);"); }
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*currentState);\ntarget_pose = liftedPose(previousTriangle);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*current_state_ptr);\ntarget_pose = liftedPose(previousTriangle);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*current_state_ptr);\ntarget_pose = liftedPose(previousTriangle);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*currentState);\ntarget_pose = liftedPose(previousTriangle);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "moveit::core::RobotState savedState(*currentState);\ntarget_pose = liftedPose(previousTriangle);");
         } // end of behavior for liftedPoseStarightLineState
     }
     
@@ -1845,10 +1924,10 @@ evaluateGuard = null;
     #LIFTEDPOSESTARIGHTLINESTATE_do()
     {
         // liftedPoseStarightLineState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\ntarget_pose, \npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\ntarget_pose, \npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\ntarget_pose, \npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = moveToPoint(\npreviousTriangle.myIndex, \nmovementDirection::BACKWARDS\n);");
         } // end of behavior for liftedPoseStarightLineState
         
         // liftedPoseStarightLineState behavior
@@ -1904,10 +1983,10 @@ evaluateGuard = null;
         } // end of behavior for moveWithLiftState
         
         // moveWithLiftState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "targetPose(target);"); }
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "targetPose(target);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "targetPose(target);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);");
         } // end of behavior for moveWithLiftState
     }
     
@@ -1932,10 +2011,10 @@ evaluateGuard = null;
     #MOVEWITHLIFTSTATE_do()
     {
         // moveWithLiftState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ntarget_pose, \ntarget.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(target)}\n);"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ncurrentTriangle.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ntarget_pose, \ntarget.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(target)}\n);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ntarget_pose, \ntarget.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(target)}\n);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ncurrentTriangle.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoverToPoint(\ncurrentTriangle.myIndex,\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);");
         } // end of behavior for moveWithLiftState
         
         // moveWithLiftState behavior
@@ -1956,7 +2035,7 @@ evaluateGuard = null;
         } // end of behavior for moveWithLiftState
         
         // moveWithLiftState behavior
-        // uml: else do / { this.tracer?.edgeTransition("edge28"); } TransitionTo(successfulJumpState)
+        // uml: else do / { this.tracer?.edgeTransition("edge28"); } TransitionTo(succ)
         {
             // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
             this.#exitUpToStateHandler(tracingStateMachine.StateId.JUMPTOBRANCHSTATE);
@@ -1964,8 +2043,8 @@ evaluateGuard = null;
             // Step 2: Transition action: `this.tracer?.edgeTransition("edge28");`.
             this.tracer?.edgeTransition("edge28");
             
-            // Step 3: Enter/move towards transition target `successfulJumpState`.
-            this.#SUCCESSFULJUMPSTATE_enter();
+            // Step 3: Enter/move towards transition target `succ`.
+            this.#SUCC_enter();
             
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
@@ -2019,10 +2098,10 @@ evaluateGuard = null;
     #TARGETPOSESTRAIGHTLINESTATE_do()
     {
         // targetPoseStraightLineState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ntarget_pose, \ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ntarget_pose, \ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ntarget_pose, \ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "oparationSuccessCatcher = moveToPoint(\ncurrentTriangle.myIndex, \nmovementDirection::FORWARD\n);");
         } // end of behavior for targetPoseStraightLineState
         
         // targetPoseStraightLineState behavior
@@ -2043,7 +2122,7 @@ evaluateGuard = null;
         } // end of behavior for targetPoseStraightLineState
         
         // targetPoseStraightLineState behavior
-        // uml: else do / { this.tracer?.edgeTransition("edge35"); } TransitionTo(successfulJumpState)
+        // uml: else do / { this.tracer?.edgeTransition("edge35"); } TransitionTo(succ)
         {
             // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
             this.#exitUpToStateHandler(tracingStateMachine.StateId.JUMPTOBRANCHSTATE);
@@ -2051,8 +2130,8 @@ evaluateGuard = null;
             // Step 2: Transition action: `this.tracer?.edgeTransition("edge35");`.
             this.tracer?.edgeTransition("edge35");
             
-            // Step 3: Enter/move towards transition target `successfulJumpState`.
-            this.#SUCCESSFULJUMPSTATE_enter();
+            // Step 3: Enter/move towards transition target `succ`.
+            this.#SUCC_enter();
             
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
@@ -2078,10 +2157,9 @@ evaluateGuard = null;
         } // end of behavior for triangSetupState
         
         // triangSetupState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "iterator++;"); }
+        // uml: enter
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "iterator++;");`
-            this.tracer?.log("⚡ FSM would execute action: " + "iterator++;");
+            // Step 1: execute action ``
         } // end of behavior for triangSetupState
     }
     
@@ -2106,10 +2184,10 @@ evaluateGuard = null;
     #TRIANGSETUPSTATE_do()
     {
         // triangSetupState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ntarget = vectorOfTriangles[candidates[iterator]];"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]];"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ntarget = vectorOfTriangles[candidates[iterator]];");`
-            this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ntarget = vectorOfTriangles[candidates[iterator]];");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]];");`
+            this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]];");
         } // end of behavior for triangSetupState
         
         // triangSetupState behavior
@@ -2133,69 +2211,50 @@ evaluateGuard = null;
     
     
     ////////////////////////////////////////////////////////////////////////////////
-    // event handlers for state SUCCESSFULJUMPSTATE
+    // event handlers for state SUCC
     ////////////////////////////////////////////////////////////////////////////////
     
-    #SUCCESSFULJUMPSTATE_enter()
+    #SUCC_enter()
     {
-        this.stateId = tracingStateMachine.StateId.SUCCESSFULJUMPSTATE;
+        this.stateId = tracingStateMachine.StateId.SUCC;
         
-        // successfulJumpState behavior
-        // uml: enter / { this.tracer?.enterState('successfulJumpState'); }
+        // succ behavior
+        // uml: enter / { this.tracer?.enterState('succ'); }
         {
-            // Step 1: execute action `this.tracer?.enterState('successfulJumpState');`
-            this.tracer?.enterState('successfulJumpState');
-        } // end of behavior for successfulJumpState
-        
-        // successfulJumpState behavior
-        // uml: enter
-        {
-            // Step 1: execute action ``
-        } // end of behavior for successfulJumpState
+            // Step 1: execute action `this.tracer?.enterState('succ');`
+            this.tracer?.enterState('succ');
+        } // end of behavior for succ
     }
     
-    #SUCCESSFULJUMPSTATE_exit()
+    #SUCC_exit()
     {
-        // successfulJumpState behavior
-        // uml: exit
+        // succ behavior
+        // uml: exit / { this.tracer?.exitState('succ'); }
         {
-            // Step 1: execute action ``
-        } // end of behavior for successfulJumpState
-        
-        // successfulJumpState behavior
-        // uml: exit / { this.tracer?.exitState('successfulJumpState'); }
-        {
-            // Step 1: execute action `this.tracer?.exitState('successfulJumpState');`
-            this.tracer?.exitState('successfulJumpState');
-        } // end of behavior for successfulJumpState
+            // Step 1: execute action `this.tracer?.exitState('succ');`
+            this.tracer?.exitState('succ');
+        } // end of behavior for succ
         
         this.stateId = tracingStateMachine.StateId.JUMPTOBRANCHSTATE;
     }
     
-    #SUCCESSFULJUMPSTATE_do()
+    #SUCC_do()
     {
-        // successfulJumpState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle = target;"); }
-        {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle = target;");`
-            this.tracer?.log("⚡ FSM would execute action: " + "currentTriangle = target;");
-        } // end of behavior for successfulJumpState
-        
-        // successfulJumpState behavior
-        // uml: do / { this.tracer?.edgeTransition("edge40"); } TransitionTo(leastNeighboursSearchState)
+        // succ behavior
+        // uml: do / { this.tracer?.edgeTransition("edge43"); } TransitionTo(leastNeighboursSearchState)
         {
             // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
             this.#exitUpToStateHandler(tracingStateMachine.StateId.ROOT);
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge40");`.
-            this.tracer?.edgeTransition("edge40");
+            // Step 2: Transition action: `this.tracer?.edgeTransition("edge43");`.
+            this.tracer?.edgeTransition("edge43");
             
             // Step 3: Enter/move towards transition target `leastNeighboursSearchState`.
             this.#LEASTNEIGHBOURSSEARCHSTATE_enter();
             
             // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
             return;
-        } // end of behavior for successfulJumpState
+        } // end of behavior for succ
         
         // No ancestor handles this event.
     }
@@ -2270,14 +2329,14 @@ evaluateGuard = null;
         } // end of behavior for leastNeighboursSearchState
         
         // leastNeighboursSearchState behavior
-        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess") || this.evaluateGuard("leastNeighboursSearchState","do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] TransitionTo(getCandidatesState)")] / { this.tracer?.edgeTransition("edge1"); } TransitionTo(getCandidatesState)
-        if (this.tracer?.log("🛡️ User evaluating guard: " + "(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess") || this.evaluateGuard("leastNeighboursSearchState","do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] TransitionTo(getCandidatesState)"))
+        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess") || this.evaluateGuard("leastNeighboursSearchState","do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] / { jumpIterator = 0 } TransitionTo(getCandidatesState)")] / { this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge1"); } TransitionTo(getCandidatesState)
+        if (this.tracer?.log("🛡️ User evaluating guard: " + "(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess") || this.evaluateGuard("leastNeighboursSearchState","do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] / { jumpIterator = 0 } TransitionTo(getCandidatesState)"))
         {
             // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
             this.#LEASTNEIGHBOURSSEARCHSTATE_exit();
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge1");`.
-            this.tracer?.edgeTransition("edge1");
+            // Step 2: Transition action: `this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge1");`.
+            this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge1");
             
             // Step 3: Enter/move towards transition target `getCandidatesState`.
             this.#JUMPTOBRANCHSTATE_enter();
@@ -2629,8 +2688,8 @@ evaluateGuard = null;
         } // end of behavior for reachFailed
         
         // reachFailed behavior
-        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "iterator < \ndesiredVectorSize") || this.evaluateGuard("reachFailed","do [iterator < \ndesiredVectorSize] TransitionTo(getClosestState)")] / { this.tracer?.edgeTransition("edge13"); } TransitionTo(getClosestState)
-        if (this.tracer?.log("🛡️ User evaluating guard: " + "iterator < \ndesiredVectorSize") || this.evaluateGuard("reachFailed","do [iterator < \ndesiredVectorSize] TransitionTo(getClosestState)"))
+        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "iterator < size") || this.evaluateGuard("reachFailed","do [iterator < size] TransitionTo(getClosestState)")] / { this.tracer?.edgeTransition("edge13"); } TransitionTo(getClosestState)
+        if (this.tracer?.log("🛡️ User evaluating guard: " + "iterator < size") || this.evaluateGuard("reachFailed","do [iterator < size] TransitionTo(getClosestState)"))
         {
             // Step 1: Exit states until we reach `reachingState` state (Least Common Ancestor for transition).
             this.#REACHFAILED_exit();
@@ -2920,14 +2979,14 @@ evaluateGuard = null;
         } // end of behavior for moveToEdgeState
         
         // moveToEdgeState behavior
-        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "iterator > ((int)sortedNeighbours.size() - 1)") || this.evaluateGuard("moveToEdgeState","do [iterator > ((int)sortedNeighbours.size() - 1)] TransitionTo(getCandidatesState)")] / { this.tracer?.edgeTransition("edge18"); } TransitionTo(getCandidatesState)
-        if (this.tracer?.log("🛡️ User evaluating guard: " + "iterator > ((int)sortedNeighbours.size() - 1)") || this.evaluateGuard("moveToEdgeState","do [iterator > ((int)sortedNeighbours.size() - 1)] TransitionTo(getCandidatesState)"))
+        // uml: do [this.tracer?.log("🛡️ User evaluating guard: " + "iterator > ((int)sortedNeighbours.size() - 1)") || this.evaluateGuard("moveToEdgeState","do [iterator > ((int)sortedNeighbours.size() - 1)] / { jumpIterator = 0 } TransitionTo(getCandidatesState)")] / { this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge18"); } TransitionTo(getCandidatesState)
+        if (this.tracer?.log("🛡️ User evaluating guard: " + "iterator > ((int)sortedNeighbours.size() - 1)") || this.evaluateGuard("moveToEdgeState","do [iterator > ((int)sortedNeighbours.size() - 1)] / { jumpIterator = 0 } TransitionTo(getCandidatesState)"))
         {
             // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
             this.#exitUpToStateHandler(tracingStateMachine.StateId.ROOT);
             
-            // Step 2: Transition action: `this.tracer?.edgeTransition("edge18");`.
-            this.tracer?.edgeTransition("edge18");
+            // Step 2: Transition action: `this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge18");`.
+            this.tracer?.log("⚡ FSM would execute action: " + "jumpIterator = 0");this.tracer?.edgeTransition("edge18");
             
             // Step 3: Enter/move towards transition target `getCandidatesState`.
             this.#JUMPTOBRANCHSTATE_enter();
@@ -3195,6 +3254,7 @@ evaluateGuard = null;
             case tracingStateMachine.StateId.CHECKSIZESTATE: return "CHECKSIZESTATE";
             case tracingStateMachine.StateId.FAILEDJUMPSTATE: return "FAILEDJUMPSTATE";
             case tracingStateMachine.StateId.GETCANDIDATESSTATE: return "GETCANDIDATESSTATE";
+            case tracingStateMachine.StateId.ITER: return "ITER";
             case tracingStateMachine.StateId.JUMPTOTRIANGLESTATE: return "JUMPTOTRIANGLESTATE";
             case tracingStateMachine.StateId.FAIL: return "FAIL";
             case tracingStateMachine.StateId.FALLBACKPREPSTATE: return "FALLBACKPREPSTATE";
@@ -3203,7 +3263,7 @@ evaluateGuard = null;
             case tracingStateMachine.StateId.MOVEWITHLIFTSTATE: return "MOVEWITHLIFTSTATE";
             case tracingStateMachine.StateId.TARGETPOSESTRAIGHTLINESTATE: return "TARGETPOSESTRAIGHTLINESTATE";
             case tracingStateMachine.StateId.TRIANGSETUPSTATE: return "TRIANGSETUPSTATE";
-            case tracingStateMachine.StateId.SUCCESSFULJUMPSTATE: return "SUCCESSFULJUMPSTATE";
+            case tracingStateMachine.StateId.SUCC: return "SUCC";
             case tracingStateMachine.StateId.LEASTNEIGHBOURSSEARCHSTATE: return "LEASTNEIGHBOURSSEARCHSTATE";
             case tracingStateMachine.StateId.REACHINGSTATE: return "REACHINGSTATE";
             case tracingStateMachine.StateId.GETCLOSESTSTATE: return "GETCLOSESTSTATE";
@@ -3342,10 +3402,13 @@ evaluateGuard = null;
   "failedJumpState": [
     "do"
   ],
-  "successfulJumpState": [
+  "checkSizeState": [
     "do"
   ],
-  "checkSizeState": [
+  "succ": [
+    "do"
+  ],
+  "iter": [
     "do"
   ],
   "allPlanned": [
