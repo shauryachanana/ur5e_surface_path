@@ -65,6 +65,12 @@ extern std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_g
 
 extern std::vector<bool> traced;
 
+extern int chosenVector;
+extern std::vector<Triangle>
+    singleNeighbourTrangles;
+extern std::vector<Triangle>
+    doubleNeighbourTriangles;
+
 //will be used to detect edges
 //we store 2 indeces of the triange corners (edge of a triangle) as a key and then assign it triangle's index
 struct PairHash {
@@ -139,19 +145,19 @@ struct Triangle{
     //vars to not trace triangle multiple times
     int unreachableCounter = 0;
     bool traced = false;
-    // CHANGE: neighbourFailed[i] = going from this triangle to myNeighbours[i] was already tried and failed
+
     std::vector<bool> neighbourFailed = std::vector<bool>(3, false);
 
     int myIndex = 0;
 
-    int getValidNeighbours(std::vector<bool> &tracedTriangles, const std::vector<Triangle>& vectorOfTriangles) const{ // CHANGE: const
+    int getValidNeighbours(){
         int numbOfNeigh = 0;
         for(int i = 0; i<(int)myNeighbours.size(); i++){
             if((myNeighbours[i] != -1) && 
-            (vectorOfTriangles[myNeighbours[i]].traced == false) && 
-            (tracedTriangles[myNeighbours[i]] == false) &&
-            (vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3) &&
-            !neighbourFailed[i]){ // CHANGE
+            (sm.vars.vectorOfTriangles[myNeighbours[i]].traced == false) &&
+            (sm.vars.traced[myNeighbours[i]] == false) &&
+            (sm.vars.vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3) &&
+            !neighbourFailed[i]){
                 numbOfNeigh++;
             }
         }
@@ -219,17 +225,8 @@ int startOperation(
     Triangle &triangleToTrace
 );
 
-void init();
-void goHome();
-bool getTCPpose(double* currentTCP);
-void getTCPorientation(double* TCPorientation);
-AttemptToReach attemptToReachNextClosest(std::vector<Triangle> vectorOfDesidedTriangles, int &closestTriangleIndex);
-geometry_msgs::msg::Pose targetPose(const Triangle &triangle);
 int getClosestTriangle(std::vector<Triangle> &vectorOfTriangles, double* currentTCP);
 float distanceToTCP(Triangle &triangle, double* currentTCP);
-bool moveToPoint(geometry_msgs::msg::Pose target_pose, int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
-// std::vector<int> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
-std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours(std::vector<Triangle> &vectorOfTriangles, std::vector<bool> &traced, Triangle triangleToTrace);
 //converts the (stack-ordered, most-recent-first) planning history into the
 //chronological sequence it was produced in, without consuming pathHistory
 std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy);
@@ -240,5 +237,27 @@ bool confirmPathExecution(float coveragePercent);
 //replays the already-planned, already-verified trajectories in order;
 //performs no planning/decision logic of its own
 bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints);
+
+void triangleExtraction();
+void init();
+void goHome();
+bool getTCPpose();
+void getTCPorientation(double* TCPorientation);
+void attemptToReachNextClosest();
+void targetPose(const Triangle &triangle);
+int getClosestTriangle();
+float distanceToTCP();
+bool moveToPoint(int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
+bool moveToPointWithPenRotation();
+void triangleWithLeastNeighbours();
+std::vector<Waypoint> extractOrderedPath();
+float computeCoveragePercent();
+bool confirmPathExecution();
+bool executePlannedPath();
+void edgePoseWithOldOrient();
+std::vector<BranchCandidate> getBranchCandidates(std::vector<Triangle> &vectorOfTriangles,std::vector<bool> &traced);
+bool planOMPLPose(const geometry_msgs::msg::Pose &targetPoseForPlan,int triangleIndex);
+bool jumpToTriangle(const Triangle &from,Triangle &target);
+int jumpToNearestBranchPoint(std::vector<Triangle> &vectorOfTriangles,std::vector<bool> &traced,const Triangle &from;)
 
 #endif

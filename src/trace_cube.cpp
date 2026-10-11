@@ -11,7 +11,6 @@
 #include <fstream>
 #include <thread>
 
-
 // ================================================================
 // GLOBAL ROS / MOVEIT OBJECTS
 // ================================================================
@@ -24,6 +23,17 @@ std::shared_ptr<tf2_ros::TransformListener> tf_listener;
 std::unique_ptr<moveit::planning_interface::MoveGroupInterface>
     gripper_group_interface;
 
+// ================================================================
+// GLOBALS
+// ================================================================
+
+tracingStateMachine sm;
+
+int chosenVector = 0;
+std::vector<Triangle>
+    singleNeighbourTrangles;
+std::vector<Triangle>
+    doubleNeighbourTriangles;
 
 // ================================================================
 // MESH
@@ -44,7 +54,6 @@ shapes::Mesh* mesh =
 
 extern std::stack<Waypoint> pathHistory;
 extern std::stack<Waypoint> stackOfReachableWaypoints;
-extern std::size_t lastUsefulWaypointCount; // CHANGE
 
 std::vector<bool> traced;
 
@@ -451,15 +460,8 @@ int main(int argc, char** argv)
                 // Read TCP from TF.
                 // -----------------------------------------------
 
-                double tcp[3] =
-                {
-                    0.0,
-                    0.0,
-                    0.0
-                };
-
                 // Do not record an invalid zero point if TF fails.
-                if(!getTCPpose(tcp))
+                if(!getTCPpose())
                 {
                     return;
                 }
@@ -467,9 +469,9 @@ int main(int argc, char** argv)
 
                 geometry_msgs::msg::Point point;
 
-                point.x = tcp[0];
-                point.y = tcp[1];
-                point.z = tcp[2];
+                point.x = sm.vars.currentTCP[0];
+                point.y = sm.vars.currentTCP[1];
+                point.z = sm.vars.currentTCP[2];
 
 
                 // -----------------------------------------------
@@ -801,15 +803,6 @@ int main(int argc, char** argv)
     // FIND TRIANGLES WITH FEWEST NEIGHBOURS
     // ============================================================
 
-    std::vector<Triangle>
-        singleNeighbpurTrangles;
-
-    std::vector<Triangle>
-        doubleNeighbourTriangles;
-
-    int chosenVector = 0;
-
-
     for(std::size_t i = 0;
         i < vectorOfTriangles.size();
         ++i)
@@ -837,7 +830,7 @@ int main(int argc, char** argv)
     }
 
 
-    if(!singleNeighbpurTrangles.empty())
+    if(!singleNeighbourTrangles.empty())
     {
         chosenVector = 0;
     }
@@ -855,85 +848,7 @@ int main(int argc, char** argv)
     // FIND INITIAL REACHABLE TRIANGLE
     // ============================================================
 
-    AttemptToReach initialTriangle =
-        AttemptToReach::EMPTY_VECTOR;
-
-    int closestTriangleIndex = 0;
-
-
-    while(
-        initialTriangle !=
-            AttemptToReach::TRIANGLE_REACHED
-        &&
-        chosenVector < 3
-    )
-    {
-        switch(chosenVector)
-        {
-            case 0:
-            {
-                #ifdef DEBUGGER
-                RCLCPP_WARN(
-                    logger,
-                    "attempt in singleNeighbpurTrangles"
-                );
-                #endif
-
-                initialTriangle =
-                    attemptToReachNextClosest(
-                        singleNeighbpurTrangles,
-                        closestTriangleIndex
-                    );
-
-                chosenVector++;
-
-                break;
-            }
-
-
-            case 1:
-            {
-                #ifdef DEBUGGER
-                RCLCPP_WARN(
-                    logger,
-                    "attempt in doubleNeighbourTriangles"
-                );
-                #endif
-
-                initialTriangle =
-                    attemptToReachNextClosest(
-                        doubleNeighbourTriangles,
-                        closestTriangleIndex
-                    );
-
-                chosenVector++;
-
-                break;
-            }
-
-
-            case 2:
-            {
-                #ifdef DEBUGGER
-                RCLCPP_WARN(
-                    logger,
-                    "attempt in vectorOfTriangles"
-                );
-                #endif
-
-                initialTriangle =
-                    attemptToReachNextClosest(
-                        vectorOfTriangles,
-                        closestTriangleIndex
-                    );
-
-                chosenVector++;
-
-                break;
-            }
-        }
-    }
-
+//statemachineStart
 
     // ============================================================
     // ABORT IF NO INITIAL TRIANGLE WAS REACHABLE
@@ -977,24 +892,6 @@ int main(int argc, char** argv)
 
         return 1;
     }
-
-
-    vectorOfTriangles[
-        closestTriangleIndex
-    ].traced = true;
-
-    traced[
-        closestTriangleIndex
-    ] = true;
-
-
-    #ifdef DEBUGGER
-    RCLCPP_WARN(
-        logger,
-        "reached initial triangle, %d!",
-        closestTriangleIndex
-    );
-    #endif
 
 
     // ============================================================
@@ -1047,19 +944,13 @@ int main(int argc, char** argv)
     const auto planningStart =
         std::chrono::steady_clock::now();
 
+//TODO: what to do with it?
+    tracingStateMachine_ctor(&sm);    // must be called first
+    tracingStateMachine_start(&sm);   // enters the initial state
 
-    // CHANGE: everything stored up to here (initial triangle) is useful
-    lastUsefulWaypointCount = stackOfReachableWaypoints.size();
-
-    int nextOne =
-        startOperation(
-            vectorOfTriangles,
-            traced,
-            vectorOfTriangles[
-                closestTriangleIndex
-            ]
-        );
-
+    while(rclcpp::ok() && !sm.vars.isExited){
+        tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
+    }
 
     while(
         rclcpp::ok() &&
@@ -1199,13 +1090,6 @@ int main(int argc, char** argv)
             );
     }
 
-
-    // >>> CHANGE START: drop the final backtracking that only retraces the path after the last real planning action
-    while(stackOfReachableWaypoints.size() > lastUsefulWaypointCount)
-    {
-        stackOfReachableWaypoints.pop();
-    }
-    // <<< CHANGE END
 
     const std::size_t finalTracedCount =
         std::count(

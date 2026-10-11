@@ -20,47 +20,11 @@ using BoolVec = std::vector<bool>;
 using BranchVec = std::vector<BranchCandidate>;
 using Pose = geometry_msgs::msg::Pose;
 using Tip = geometry_msgs::msg::Point;
-using Quaternion - geometry_msgs::msg::Quaternion;
+using Quaternion - tf2::Quaternion;
 using std::size_t;
 using Vec3d = double[3];
-using Result = std::pair<std::vector<int>, std::vector<int>>;
-
-enum class AttemptToReach{
-   TRIANGLE_REACHED,
-   TRIANGLE_FAILED,
-   CENTER_TO_EDGE_FAILED,
-   EDGE_TO_CENTER_FAILED,
-   FAILED,
-   EMPTY_VECTOR
-};
-enum class movementDirection{
-   FORWARD,
-   BACKWARDS
-};
-enum class waypointType{
-   TRIANGLE,
-   EDGE
-};
 //============================
 
-//==ADD YOUT FUNCTIONS HERE==
-AttemptToReach traceNeighbour();
-void triangleExtraction();
-int startOperation();
-void init();
-void goHome();
-bool getTCPpose();
-void getTCPorientation();
-AttemptToReach attemptToReachNextClosest();
-geometry_msgs::msg::Pose targetPose();
-int getClosestTriangle();
-float distanceToTCP();
-bool moveToPoint(movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours();
-std::vector<Waypoint> extractOrderedPath();
-float computeCoveragePercent();
-bool confirmPathExecution();
-bool executePlannedPath();
-std::pair<std::vector<int>, std::vector<int>> triangleWithLeastNeighbours();//==============================
 
 typedef enum tracingStateMachine_EventId
 {
@@ -121,30 +85,25 @@ typedef struct tracingStateMachine tracingStateMachine;
 typedef struct tracingStateMachine_Vars
 {
     TriangleVec vectorOfTriangles; 
-        BoolVec traced; 
+    BoolVec traced; 
     bool noReachableTrianglesLeft;
-        Pose target_pose; 
+    Pose target_pose; 
     Pose oldPose;
-        Triangle currentTriangle;
+    Triangle currentTriangle;
     Triangle previousTriangle;
-    Edge egdeBetweenLastAndCurrent; 
-        Triangle target; 
-        AttemptToReach initialTriangle; 
-        int chosenVector;
-        int closestTriangle; 
-        int iterator; 
-        int opSuccess; 
-        size_t desiredVectorSize; 
-        size_t size; 
+    AttemptToReach initialTriangle;
+    int iterator; 
+    int opSuccess; 
+    size_t desiredVectorSize; 
+    size_t size; 
     auto currentState;
     Tip edgePenTip;
-    Quaternion quaternion;
-        Vec3d currentTCP; 
+    Vec3d currentTCP; 
     BranchVec candidates;
-        TriangleVec vectorOfDesiredTriangles; 
-        TriangleVec singleNeighbourTriangles; 
-        TriangleVec doubleNeighbourTriangles;
-    AttemptToReach neighbourReachAttempt;Result result;
+    TriangleVec vectorOfDesiredTriangles; 
+    AttemptToReach neighbourReachAttempt;
+    TriangleVec sortedNeighbours;
+    TriangleVec sortedEdges;
 } tracingStateMachine_Vars;
 
 
