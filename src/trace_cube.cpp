@@ -11,6 +11,8 @@
 #include <fstream>
 #include <thread>
 
+//TODO: remake everything for pointers
+
 // ================================================================
 // GLOBAL ROS / MOVEIT OBJECTS
 // ================================================================
@@ -28,12 +30,11 @@ std::unique_ptr<moveit::planning_interface::MoveGroupInterface>
 // ================================================================
 
 tracingStateMachine sm;
-
 int chosenVector = 0;
-std::vector<Triangle>
-    singleNeighbourTrangles;
-std::vector<Triangle>
-    doubleNeighbourTriangles;
+
+std::vector<Triangle*> vectorOfTriangles;
+std::vector<Triangle*> singleNeighbourTrangles;
+std::vector<Triangle*> doubleNeighbourTriangles;
 
 // ================================================================
 // MESH
@@ -665,12 +666,7 @@ int main(int argc, char** argv)
     // EXTRACT TRIANGLES
     // ============================================================
 
-    std::vector<Triangle>
-        vectorOfTriangles;
-
-    triangleExtraction(
-        vectorOfTriangles
-    );
+    triangleExtraction();
 
 
     if(vectorOfTriangles.empty())
@@ -808,24 +804,16 @@ int main(int argc, char** argv)
         ++i)
     {
         int validNeighbours =
-            vectorOfTriangles[i]
-                .getValidNeighbours(
-                    traced,
-                    vectorOfTriangles
-                );
+            vectorOfTriangles[i]->getValidNeighbours();
 
 
         if(validNeighbours == 1)
         {
-            singleNeighbpurTrangles.push_back(
-                vectorOfTriangles[i]
-            );
+            singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
         }
         else if(validNeighbours == 2)
         {
-            doubleNeighbourTriangles.push_back(
-                vectorOfTriangles[i]
-            );
+            doubleNeighbourTriangles.push_back(&vectorOfTriangles[i]);
         }
     }
 
@@ -1074,20 +1062,6 @@ int main(int argc, char** argv)
 
             break;
         }
-
-
-        // --------------------------------------------------------
-        // Continue planning from the selected next triangle.
-        // --------------------------------------------------------
-
-        nextOne =
-            startOperation(
-                vectorOfTriangles,
-                traced,
-                vectorOfTriangles[
-                    nextOne
-                ]
-            );
     }
 
 
@@ -1205,7 +1179,7 @@ int main(int argc, char** argv)
         i < vectorOfTriangles.size();
         ++i)
     {
-        if(vectorOfTriangles[i].traced)
+        if(vectorOfTriangles[i]->traced)
         {
             tracedf++;
         }

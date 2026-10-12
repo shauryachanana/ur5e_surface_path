@@ -6,16 +6,11 @@
 
 #pragma once  // You can also specify normal include guard. See https://github.com/StateSmith/StateSmith/blob/main/docs/settings.md
 #include <stdint.h>
-#include <vector>
-#include <stack>
-#include <math.h>
-#include <algorithm>
-#include <thread>
-#include <cmath>   
-#include <trace_cube.hpp>
+#include "../trace_cube.hpp"
 
 //=======NAMING UTILS========
-using TriangleVec = std::vector<Triangle>;
+using TriangleVec = std::vector<Triangle*>;
+using EdgeVec = std::vector<Edge*>;
 using BoolVec = std::vector<bool>;
 using BranchVec = std::vector<BranchCandidate>;
 using Pose = geometry_msgs::msg::Pose;
@@ -42,39 +37,41 @@ typedef enum tracingStateMachine_StateId
     tracingStateMachine_StateId_ABORTSTATE = 1,
     tracingStateMachine_StateId_ALLPLANNED = 2,
     tracingStateMachine_StateId_ATTEMPTNEXTCLOSESTSTATE = 3,
-    tracingStateMachine_StateId_INITSTATE = 4,
-    tracingStateMachine_StateId_JUMPTOBRANCHSTATE = 5,
-    tracingStateMachine_StateId_CHECKSIZESTATE = 6,
-    tracingStateMachine_StateId_FAILEDJUMPSTATE = 7,
-    tracingStateMachine_StateId_GETCANDIDATESSTATE = 8,
-    tracingStateMachine_StateId_ITER = 9,
-    tracingStateMachine_StateId_JUMPTOTRIANGLESTATE = 10,
-    tracingStateMachine_StateId_FAIL = 11,
-    tracingStateMachine_StateId_FALLBACKPREPSTATE = 12,
-    tracingStateMachine_StateId_LIFTEDPOSERANDOMTRAJSTATE = 13,
-    tracingStateMachine_StateId_LIFTEDPOSESTARIGHTLINESTATE = 14,
-    tracingStateMachine_StateId_MOVEWITHLIFTSTATE = 15,
-    tracingStateMachine_StateId_TARGETPOSESTRAIGHTLINESTATE = 16,
-    tracingStateMachine_StateId_TRIANGSETUPSTATE = 17,
-    tracingStateMachine_StateId_SUCC = 18,
-    tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE = 19,
-    tracingStateMachine_StateId_REACHINGSTATE = 20,
-    tracingStateMachine_StateId_GETCLOSESTSTATE = 21,
-    tracingStateMachine_StateId_GETPOSESTATEINREACHING = 22,
-    tracingStateMachine_StateId_MOVESTATEINREACHING = 23,
-    tracingStateMachine_StateId_REACHFAILED = 24,
-    tracingStateMachine_StateId_TRACENEIGHBOURSTATE = 25,
-    tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE = 26,
-    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 27,
-    tracingStateMachine_StateId_MOVETOEDGESTATE = 28,
-    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 29,
-    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 30,
-    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 31
+    tracingStateMachine_StateId_BACKTRACKSTATE = 4,
+    tracingStateMachine_StateId_INITSTATE = 5,
+    tracingStateMachine_StateId_JUMPTOBRANCHSTATE = 6,
+    tracingStateMachine_StateId_CHECKSIZESTATE = 7,
+    tracingStateMachine_StateId_FAILEDJUMPSTATE = 8,
+    tracingStateMachine_StateId_GETCANDIDATESSTATE = 9,
+    tracingStateMachine_StateId_ITER = 10,
+    tracingStateMachine_StateId_JUMPTOTRIANGLESTATE = 11,
+    tracingStateMachine_StateId_FAIL = 12,
+    tracingStateMachine_StateId_FALLBACKPREPSTATE = 13,
+    tracingStateMachine_StateId_LIFTEDPOSERANDOMTRAJSTATE = 14,
+    tracingStateMachine_StateId_LIFTEDPOSESTARIGHTLINESTATE = 15,
+    tracingStateMachine_StateId_MOVEWITHLIFTSTATE = 16,
+    tracingStateMachine_StateId_TARGETPOSESTRAIGHTLINESTATE = 17,
+    tracingStateMachine_StateId_TRIANGSETUPSTATE = 18,
+    tracingStateMachine_StateId_SUCC = 19,
+    tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE = 20,
+    tracingStateMachine_StateId_REACHINGSTATE = 21,
+    tracingStateMachine_StateId_GETCLOSESTSTATE = 22,
+    tracingStateMachine_StateId_GETPOSESTATEINREACHING = 23,
+    tracingStateMachine_StateId_MOVESTATEINREACHING = 24,
+    tracingStateMachine_StateId_REACHFAILED = 25,
+    tracingStateMachine_StateId_TRACENEIGHBOURSTATE = 26,
+    tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE = 27,
+    tracingStateMachine_StateId_JUMP = 28,
+    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 29,
+    tracingStateMachine_StateId_MOVETOEDGESTATE = 30,
+    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 31,
+    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 32,
+    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 33
 } tracingStateMachine_StateId;
 
 enum
 {
-    tracingStateMachine_StateIdCount = 32
+    tracingStateMachine_StateIdCount = 34
 };
 
 
@@ -85,14 +82,13 @@ typedef struct tracingStateMachine tracingStateMachine;
 // State machine variables. Can be used for inputs, outputs, user variables...
 typedef struct tracingStateMachine_Vars
 {
-    TriangleVec vectorOfTriangles; 
-    BoolVec traced; 
     bool noReachableTrianglesLeft;
     bool diedAtTheBeginning;
     Pose target_pose; 
     Pose oldPose;
-    Triangle currentTriangle;
-    Triangle previousTriangle;
+    Triangle* currentTriangle;
+    Triangle* previousTriangle;
+    Triangle* triangleToMemorize;
     AttemptToReach initialTriangle;
     int iterator;
     int jumpIterator;
@@ -106,7 +102,7 @@ typedef struct tracingStateMachine_Vars
     TriangleVec vectorOfDesiredTriangles; 
     AttemptToReach neighbourReachAttempt;
     TriangleVec sortedNeighbours;
-    TriangleVec sortedEdges;
+    EdgeVec sortedEdges;
 } tracingStateMachine_Vars;
 
 

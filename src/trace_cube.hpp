@@ -10,8 +10,6 @@
 #include <thread>
 #include <cmath>
 
-
-
 #include <fstream> // reading files from disk
 #include <chrono> //for selay of 2s
 #include <tf2/LinearMath/Quaternion.h>
@@ -32,14 +30,6 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#ifdef POINTCLOUDS
-
-//add find_package(PCL REQUIRED) to CMakeLists.txt!
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#endif
-
 #include <unordered_map>
 #include <utility>
 #include <functional>
@@ -47,8 +37,9 @@
 
 #define DEBUGGER
 #define TEMPORARY
-// #define TRIANGLES
-// #define POINTCLOUDS
+
+struct Triangle;
+extern std::vector<Triangle*> vectorOfTriangles;
 
 extern std::shared_ptr<rclcpp::Node> node;
 
@@ -66,10 +57,10 @@ extern std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_g
 extern std::vector<bool> traced;
 
 extern int chosenVector;
-extern std::vector<Triangle>
-    singleNeighbourTrangles;
-extern std::vector<Triangle>
-    doubleNeighbourTriangles;
+extern std::vector<Triangle*> vectorOfTriangles;
+extern std::vector<Triangle*> singleNeighbourTrangles;
+extern std::vector<Triangle*> doubleNeighbourTriangles;
+extern std::vector<int> branchPoints;
 
 //will be used to detect edges
 //we store 2 indeces of the triange corners (edge of a triangle) as a key and then assign it triangle's index
@@ -102,10 +93,11 @@ enum class waypointType{
     EDGE
 };
 
+//TODO: waypoints should store triangle pointers?
 struct Waypoint {
     geometry_msgs::msg::Pose pose;
     waypointType typeOfWaypoint;
-    int triangleIndex;
+    Triangle* triangle;
     moveit_msgs::msg::RobotTrajectory trajectory;
 };
 
@@ -154,9 +146,9 @@ struct Triangle{
         int numbOfNeigh = 0;
         for(int i = 0; i<(int)myNeighbours.size(); i++){
             if((myNeighbours[i] != -1) && 
-            (sm.vars.vectorOfTriangles[myNeighbours[i]].traced == false) &&
-            (sm.vars.traced[myNeighbours[i]] == false) &&
-            (sm.vars.vectorOfTriangles[myNeighbours[i]].unreachableCounter < 3) &&
+            (vectorOfTriangles[myNeighbours[i]]->traced == false) &&
+            (traced[myNeighbours[i]] == false) &&
+            (vectorOfTriangles[myNeighbours[i]]->unreachableCounter < 3) &&
             !neighbourFailed[i]){
                 numbOfNeigh++;
             }
@@ -171,7 +163,7 @@ struct Triangle{
         normal_z = mesh->triangle_normals[index*3 + 2];
     }
 
-    void findNeighbours(std::vector<Triangle>& vectorOfTriangles, const std::pair<int, int> key, const int  arrayIndex){
+    void findNeighbours(const std::pair<int, int> key, const int  arrayIndex){
         auto value = edgeDetection.find(key);
         if(value == edgeDetection.end()){
             myNeighbours[arrayIndex] = -1;
@@ -182,8 +174,8 @@ struct Triangle{
         }else{
             myNeighbours[arrayIndex] = value->second;
             for(int j = 0; j<3; j++){
-                if(vectorOfTriangles[value->second].myNeighbours[j] == -1){
-                    vectorOfTriangles[value->second].myNeighbours[j] = myIndex;
+                if(vectorOfTriangles[value->second]->myNeighbours[j] == -1){
+                    vectorOfTriangles[value->second]->myNeighbours[j] = myIndex;
                     break;
                 }
             }
@@ -196,16 +188,14 @@ struct Triangle{
 //during the planning pass and left untouched during execution
 extern std::vector<Triangle> plannedPath;
 
-void triangleExtraction(
-    std::vector<Triangle> &vectorOfTriangles
-);
+void triangleExtraction();
 
 float distanceToTCP(Triangle &triangle, double* currentTCP);
 //converts the (stack-ordered, most-recent-first) planning history into the
 //chronological sequence it was produced in, without consuming pathHistory
 std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy);
 //fraction of the mesh's triangles that the planned path actually visits
-float computeCoveragePercent(const std::vector<Triangle> &vectorOfTriangles, const std::vector<Triangle> &plannedPathVec);
+float computeCoveragePercent(const std::vector<Triangle> &plannedPathVec);
 //shows the coverage percentage and asks the operator to confirm (Y) or cancel (N)
 bool confirmPathExecution(float coveragePercent);
 //replays the already-planned, already-verified trajectories in order;
@@ -217,13 +207,17 @@ void goHome();
 bool getTCPpose();
 void getTCPorientation(double* TCPorientation);
 void attemptToReachNextClosest();
-void targetPose(const Triangle &triangle);
+void targetPose(const Triangle* triangle);
+geometry_msgs::msg::Pose liftedPose(const Triangle* triangle);
 int getClosestTriangle();
-bool moveToPoint(int triangleIndex, movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
+bool goBackOnHistory();
+void markAttemptFailed();
+bool moveToPoint(movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
 bool moveToPointWithPenRotation();
 void triangleWithLeastNeighbours();
 void edgePoseWithOldOrient();
 void getBranchCandidates();
 bool planOMPLPose();
+void rememberBranchPoint();
 
 #endif
