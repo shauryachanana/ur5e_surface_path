@@ -15,9 +15,10 @@ using BoolVec = std::vector<bool>;
 using BranchVec = std::vector<BranchCandidate>;
 using Pose = geometry_msgs::msg::Pose;
 using Tip = geometry_msgs::msg::Point;
-using Quaternion - tf2::Quaternion;
+using Quaternion = tf2::Quaternion;
 using std::size_t;
 using Vec3d = double[3];
+using State = moveit::core::RobotStatePtr;
 //============================
 
 
@@ -92,10 +93,12 @@ typedef struct tracingStateMachine_Vars
     AttemptToReach initialTriangle;
     int iterator;
     int jumpIterator;
-    volatile int opSuccess;
+    volatile bool opSuccess;
     size_t size;
     size_t candidateSize;
-    auto currentState;
+    int closestIdx; 
+    Triangle* jumpFrom;
+    State currentState;
     Tip edgePenTip;
     Vec3d currentTCP; 
     BranchVec candidates;

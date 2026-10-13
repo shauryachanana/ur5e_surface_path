@@ -62,6 +62,9 @@ extern std::vector<Triangle*> singleNeighbourTrangles;
 extern std::vector<Triangle*> doubleNeighbourTriangles;
 extern std::vector<int> branchPoints;
 
+extern std::stack<Waypoint> stackOfReachableWaypoints;
+extern std::size_t lastUsefulWaypointCount;
+
 //will be used to detect edges
 //we store 2 indeces of the triange corners (edge of a triangle) as a key and then assign it triangle's index
 struct PairHash {
@@ -147,7 +150,7 @@ struct Triangle{
         for(int i = 0; i<(int)myNeighbours.size(); i++){
             if((myNeighbours[i] != -1) && 
             (vectorOfTriangles[myNeighbours[i]]->traced == false) &&
-            (traced[myNeighbours[i]] == false) &&
+            (this->traced[myNeighbours[i]] == false) &&
             (vectorOfTriangles[myNeighbours[i]]->unreachableCounter < 3) &&
             !neighbourFailed[i]){
                 numbOfNeigh++;
@@ -184,6 +187,11 @@ struct Triangle{
     }
 };
 
+struct BranchCandidate{
+    Triangle* triangle;
+    int pathDistance;
+};
+
 //the complete, already-decided sequence of triangles to visit, filled in
 //during the planning pass and left untouched during execution
 extern std::vector<Triangle> plannedPath;
@@ -207,9 +215,10 @@ void goHome();
 bool getTCPpose();
 void getTCPorientation(double* TCPorientation);
 void attemptToReachNextClosest();
-void targetPose(const Triangle* triangle);
-geometry_msgs::msg::Pose liftedPose(const Triangle* triangle);
-int getClosestTriangle();
+void poseFor(Triangle* triangle);
+void targetPose(Triangle* triangle);
+void liftedPose(Triangle* triangle);
+void getClosestTriangle();
 bool goBackOnHistory();
 void markAttemptFailed();
 bool moveToPoint(movementDirection movementDir = movementDirection::FORWARD, waypointType waypoint = waypointType::TRIANGLE, const std::vector<geometry_msgs::msg::Pose> &viaPoses = {});
@@ -219,5 +228,7 @@ void edgePoseWithOldOrient();
 void getBranchCandidates();
 bool planOMPLPose();
 void rememberBranchPoint();
+void edgeTipPose();
+void restoreVirtualStartState();
 
 #endif

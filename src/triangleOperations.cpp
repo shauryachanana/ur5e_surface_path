@@ -1,4 +1,5 @@
 #include "trace_cube.hpp"
+#include "stateMachineIKU/tracingStateMachine.hpp"
 
 // std::unordered_map<std::pair<int,int>, int> edgeDetection;
 std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
@@ -85,9 +86,10 @@ void triangleExtraction(){
 
 void getClosestTriangle(){
     int bestCandodateIndex = -1;
+    getTCPpose();
     float minDist = 100000;
     for(unsigned int i = 0; i < sm.vars.vectorOfDesiredTriangles.size(); i++){
-        float distanceToTriangle = distanceToTCP(sm.vars.vectorOfDesiredTriangles[i], currentTCP);
+        float distanceToTriangle = distanceToTCP(sm.vars.vectorOfDesiredTriangles[i], sm.vars.currentTCP);
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             bestCandodateIndex = i;

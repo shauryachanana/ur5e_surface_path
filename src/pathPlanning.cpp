@@ -1,4 +1,5 @@
 #include "trace_cube.hpp"
+#include "stateMachineIKU/tracingStateMachine.hpp"
 #include <iostream>
 #include <climits>
 
@@ -9,7 +10,7 @@ std::vector<Triangle> plannedPath;
 
 // Traced triangles where there was still an untraced neighbour.
 // Recovery only considers these triangles; it never scans the whole mesh.
-static std::vector<int> branchPoints;
+std::vector<int> branchPoints;
 
 // Distance from tool0 to the pen tip along tool0's local +Z axis.
 // Positions in this file are in meters: 0.05 = 50 mm, 0.01 = 10 mm.
@@ -19,6 +20,8 @@ constexpr int PEN_ROTATION_STEPS = 50;
 //pen tip height above the surface during a jump [m]
 constexpr double JUMP_LIFT = 0.05;
 constexpr int MAX_JUMP_TRIES = 3;
+
+std::size_t lastUsefulWaypointCount = 0;
 
 void init(){
     //set id from "Context" tab sed desired planning library (open motion plannin library)
@@ -217,12 +220,7 @@ bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std
     }
 }
 
-void targetPose(const Triangle* triangle){
-    auto logger = rclcpp::get_logger("targetPose");
-
-    sm.vars.triangleToMemorize = triangle;
-    sm.vars.oldPose = sm.vars.ratget_pose;
-
+void poseFor(Triangle* triangle){
     sm.vars.target_pose.position.x = - (triangle->centreOfTriangle[0] * 0.001f) - (triangle->normal_x * PEN_LENGTH);
     sm.vars.target_pose.position.y = - (triangle->centreOfTriangle[1] * 0.001f) + 0.65f - (triangle->normal_y * PEN_LENGTH);
     sm.vars.target_pose.position.z = (triangle->centreOfTriangle[2] * 0.001f) + 0.2f + (triangle->normal_z * PEN_LENGTH);
@@ -265,18 +263,24 @@ void targetPose(const Triangle* triangle){
     sm.vars.target_pose.orientation.w = q.w();
 }
 
-geometry_msgs::msg::Pose liftedPose(const Triangle* triangle){
+void targetPose(Triangle* triangle){
     sm.vars.triangleToMemorize = triangle;
+    sm.vars.oldPose = sm.vars.target_pose;
+    poseFor(triangle);
+}
+
+void liftedPose(Triangle* triangle){
+    sm.vars.triangleToMemorize = triangle;
+    poseFor(triangle)
     sm.vars.target_pose.position.x -= triangle->normal_x * JUMP_LIFT;
     sm.vars.target_pose.position.y -= triangle->normal_y * JUMP_LIFT;
     sm.vars.target_pose.position.z += triangle->normal_z * JUMP_LIFT;
-    return sm.vars.target_pose;
 }
 
 void edgeTipPose(){
-    sm.vars.edgePenTip.x = - (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[0] * 0.001f);
-    sm.vars.edgePenTip.y = - (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[1] * 0.001f) + 0.65f;
-    sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[2] * 0.001f) + 0.2f;
+    sm.vars.edgePenTip.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f);
+    sm.vars.edgePenTip.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f;
+    sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f;
 }
 
 bool moveToPointWithPenRotation(){
@@ -442,15 +446,16 @@ bool goBackOnHistory(){
 
     if(pathHistory.top().typeOfWaypoint == waypointType::EDGE){
         sm.vars.target_pose = pathHistory.top().pose;
+        sm.vars.triangleToMemorize = pathHistory.top().triangle;
         moveToPoint(movementDirection::BACKWARDS);
         pathHistory.pop();
         if(pathHistory.empty()) return false;
     }
     sm.vars.target_pose = pathHistory.top().pose;
-    const Triangle* topTriangle = pathHistory.top().triangle;
-    if(!moveToPoint(movementDirection::BACKWARDS)) return false;  // old code ignored this result
+    sm.vars.triangleToMemorize = pathHistory.top().triangle;
+    if(!moveToPoint(movementDirection::BACKWARDS)) return false;  // TODO: what to do with this result now?
 
-    sm.vars.currentTriangle = topTriangle;
+    sm.vars.currentTriangle = sm.vars.triangleToMemorize;
     sm.vars.iterator = 0;
     return true;
 }
@@ -465,20 +470,19 @@ void markAttemptFailed(){
 }
 
 void edgePoseWithOldOrient(){
-    //use the orientation of the old triangle to avoid collisions
-    sm.vars.target_pose.orientation.x = sm.vars.target_pose.orientation.x;
-    sm.vars.target_pose.orientation.y = sm.vars.target_pose.orientation.y;
-    sm.vars.target_pose.orientation.z = sm.vars.target_pose.orientation.z;
-    sm.vars.target_pose.orientation.w = sm.vars.target_pose.orientation.w;
+    //use the orientation of the previous triangle to avoid collisions
+    poseFor(sm.vars.previousTriangle);
 
-    //edge coordinates
-    sm.vars.target_pose.position.x = - (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[0] * 0.001f) - (sm.vars.previousTriangle.normal_x * PEN_LENGTH);
-    sm.vars.target_pose.position.y = - (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[1] * 0.001f) + 0.65f - (sm.vars.previousTriangle.normal_y * PEN_LENGTH);
-    sm.vars.target_pose.position.z = (sm.vars.sortedEdges[sm.vars.iterator].centreOfEdge[2] * 0.001f) + 0.2f + (sm.vars.previousTriangle.normal_z * PEN_LENGTH);
+    //keep orientation, update position
+    sm.vars.target_pose.position.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f) - (sm.vars.previousTriangle->normal_x * PEN_LENGTH);
+    sm.vars.target_pose.position.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f - (sm.vars.previousTriangle->normal_y * PEN_LENGTH);
+    sm.vars.target_pose.position.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f + (sm.vars.previousTriangle->normal_z * PEN_LENGTH);
 }
 
 void attemptToReachNextClosest(){
-    switch (chosenVector){
+    sm.vars.iterator = 0;
+    while(chosenVector < 3){
+        switch (chosenVector){
         case 0:
             sm.vars.vectorOfDesiredTriangles = singleNeighbourTrangles;
             break;
@@ -488,6 +492,11 @@ void attemptToReachNextClosest(){
         case 2:
             sm.vars.vectorOfDesiredTriangles = vectorOfTriangles;
             break;
+        }
+        if(!sm.vars.vectorOfDesiredTriangles.empty()){
+            break;
+        }
+        chosenVector++;
     }
     sm.vars.size = sm.vars.vectorOfDesiredTriangles.size();
 }
@@ -506,7 +515,10 @@ void triangleWithLeastNeighbours(){
     for(std::size_t i = 0; i < sm.vars.previousTriangle->myNeighbours.size(); i++){
         int neighbourIndex = sm.vars.previousTriangle->myNeighbours[i];
         //if the value stored in an array is a valid one and if the triangles stored was not traced
-        if((neighbourIndex != -1) && (vectorOfTriangles[neighbourIndex]->traced == false) && (sm.vars->traced[neighbourIndex] == false)){
+        if((neighbourIndex != -1) && 
+            (vectorOfTriangles[neighbourIndex]->traced == false) && 
+            (traced[neighbourIndex] == false) &&
+            (!sm.vars.previousTriangle->neighbourFailed[i])){
             //valuyes from an array
             validNeighbours.push_back(neighbourIndex);
             //the position of this value
@@ -532,24 +544,19 @@ void triangleWithLeastNeighbours(){
     //reorder both vectors according to sort result
     for(int i : order){
         sm.vars.sortedNeighbours.push_back(vectorOfTriangles[validNeighbours[i]]);
-        sm.vars.sortedEdges.push_back(vectorOfTriangles[validNeighbours[i]]->triangleEdges[edgeIndices[i]]);
+        sm.vars.sortedEdges.push_back(&sm.vars.previousTriangle->triangleEdges[edgeIndices[i]]);
     }
 
     return;
 }
 
 void rememberBranchPoint(){
-    if(sm.vars.currentTriangle->getValidNeighbours() == 0)
+    if(sm.vars.previousTriangle->getValidNeighbours() == 0)
         return;
 
-    if(std::find(branchPoints.begin(), branchPoints.end(), sm.vars.currentTriangle->myIndex) == branchPoints.end())
-        branchPoints.push_back(sm.vars.currentTriangle->myIndex);
+    if(std::find(branchPoints.begin(), branchPoints.end(), sm.vars.previousTriangle->myIndex) == branchPoints.end())
+        branchPoints.push_back(sm.vars.previousTriangle->myIndex);
 }
-
-struct BranchCandidate{
-    Triangle* triangle;
-    int pathDistance;
-};
 
 void getBranchCandidates(){
     sm.vars.candidates.clear();
@@ -909,8 +916,7 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
             continue;
         }
 
-        int64_t previousLocalTimeNs =
-            segmentStartTimeNs;
+        int64_t previousLocalTimeNs = StartTimeNs;
 
         for(std::size_t pointIndex =
                 firstPointToCopy;
@@ -924,6 +930,18 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
                 rclcpp::Duration(
                     newPoint.time_from_start
                 ).nanoseconds();
+
+            if(pointIndex > 0 && localTimeNs <= previousLocalTimeNs)
+            {
+                double maxDelta = 0.0;
+                for(std::size_t j = 0; j < newPoint.positions.size(); ++j)
+                {
+                    maxDelta = std::max(maxDelta, std::abs(newPoint.positions[j] - segment.points[pointIndex - 1].positions[j]));
+                }
+                localTimeNs = previousLocalTimeNs + std::max<int64_t>(1000000, static_cast<int64_t>(maxDelta * 1e9)); // 1 rad/s, min 1 ms
+                newPoint.velocities.clear();
+                newPoint.accelerations.clear();
+            }
 
             /*
              * Make sure time progresses inside the original
@@ -939,7 +957,7 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
         "current=%.9f s, pose=(%.4f, %.4f, %.4f)",
         i,
         static_cast<int>(wp.typeOfWaypoint),
-        wp.triangleIndex,
+        wp.triangle ? wp.triangle->myIndex : -1,
         pointIndex,
         segment.points.size(),
         static_cast<double>(previousLocalTimeNs) / 1e9,
@@ -1162,4 +1180,15 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
     );
 
     return true;
+}
+
+void restoreVirtualStartState(){
+    auto& sr = stackOfReachableWaypoints;
+    if(sr.empty() || sr.top().trajectory.joint_trajectory.points.empty()){
+        gripper_group_interface->setStartStateToCurrentState(); return; }
+    moveit::core::RobotState st(*sm.vars.currentState);
+    st.setJointGroupPositions(gripper_group_interface->getName(),
+        sr.top().trajectory.joint_trajectory.points.back().positions);
+    st.update();
+    gripper_group_interface->setStartState(st);
 }

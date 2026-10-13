@@ -1,4 +1,5 @@
 #include "trace_cube.hpp"
+#include "stateMachineIKU/tracingStateMachine.hpp"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -116,7 +117,7 @@ double triangleAreaM2(const Triangle& t)
 
 CoverageResult analyseCoverage(
     const std::vector<geometry_msgs::msg::Point>& trace_points,
-    const std::vector<Triangle>& triangles,
+    const std::vector<Triangle*>& triangles,
     pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree,
     double coverage_radius_m,
     double interpolation_step_m)
@@ -308,7 +309,7 @@ CoverageResult analyseCoverage(
     {
         double area =
             triangleAreaM2(
-                triangles[i]
+                *triangles[i]
             );
 
         result.total_area_m2 += area;
@@ -732,7 +733,7 @@ int main(int argc, char** argv)
 
         p.x =
             -(
-                triangle.centreOfTriangle[0] *
+                triangle->centreOfTriangle[0] *
                 0.001f
             )
             -
@@ -743,7 +744,7 @@ int main(int argc, char** argv)
 
         p.y =
             -(
-                triangle.centreOfTriangle[1] *
+                triangle->centreOfTriangle[1] *
                 0.001f
             )
             +
@@ -756,7 +757,7 @@ int main(int argc, char** argv)
 
         p.z =
             (
-                triangle.centreOfTriangle[2] *
+                triangle->centreOfTriangle[2] *
                 0.001f
             )
             +
@@ -809,11 +810,11 @@ int main(int argc, char** argv)
 
         if(validNeighbours == 1)
         {
-            singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
+            singleNeighbourTrangles.push_back(vectorOfTriangles[i]);
         }
         else if(validNeighbours == 2)
         {
-            doubleNeighbourTriangles.push_back(&vectorOfTriangles[i]);
+            doubleNeighbourTriangles.push_back(vectorOfTriangles[i]);
         }
     }
 
@@ -835,8 +836,6 @@ int main(int argc, char** argv)
     // ============================================================
     // FIND INITIAL REACHABLE TRIANGLE
     // ============================================================
-
-//statemachineStart
 
     // ============================================================
     // ABORT IF NO INITIAL TRIANGLE WAS REACHABLE
@@ -932,17 +931,23 @@ int main(int argc, char** argv)
     const auto planningStart =
         std::chrono::steady_clock::now();
 
-//TODO: what to do with it?
     tracingStateMachine_ctor(&sm);    // must be called first
     tracingStateMachine_start(&sm);   // enters the initial state
 
     while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning){
         tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
+        if(sm.state_id == tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE){
+            planningIterations++;
+        }
+        //TODO: C5 Order of main differs
+    }
+
+    while(stackOfReachableWaypoints.size() > lastUsefulWaypointCount){
+        stackOfReachableWaypoints.pop();
     }
 
     while(
-        rclcpp::ok() &&
-        nextOne != -1
+        rclcpp::ok()
     )
     {
         planningIterations++;
@@ -1139,23 +1144,14 @@ int main(int argc, char** argv)
     plannedPath.clear();
 
 
-    for(const auto& wp :
-        orderedWaypoints)
+    for(const auto& wp : orderedWaypoints)
     {
         // EDGE waypoints may use triangleIndex = 0.
         // Keep existing project behaviour.
-        if(
-            wp.triangleIndex >= 0 &&
-            static_cast<std::size_t>(
-                wp.triangleIndex
-            ) < vectorOfTriangles.size()
-        )
+        if(wp.triangle != nullptr)
         {
-            plannedPath.push_back(
-                vectorOfTriangles[
-                    wp.triangleIndex
-                ]
-            );
+            // plannedPath is vector<Triangle>, so copy the pointee
+            plannedPath.push_back(*wp.triangle);
         }
 
 
