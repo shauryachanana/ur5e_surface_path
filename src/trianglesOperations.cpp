@@ -105,6 +105,7 @@ void getClosestTriangle(){
         }
     }
     sm.vars.closestIdx = closestTriangle;
+    sm.vars.currentTriangle = vectorOfTriangles[sm.vars.closestIdx];
     return;
 }
 

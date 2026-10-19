@@ -123,14 +123,14 @@ struct Edge {
 
 struct Triangle{
     //corners
-    int x[3] = {0, 0, 0};
-    int y[3] = {0, 0, 0};
-    int z[3] = {0, 0, 0};
+    float x[3] = {0, 0, 0};
+    float y[3] = {0, 0, 0};
+    float z[3] = {0, 0, 0};
 
     //centre of the triangle
     float centreOfTriangle[3] = {0,0,0};
     //normal of the triangle
-    float normal_x, normal_y, normal_z = 0;
+    float normal_x = 0, normal_y = 0, normal_z = 0;
 
     //three pair of xyz = edges
     Edge* triangleEdges[3];
