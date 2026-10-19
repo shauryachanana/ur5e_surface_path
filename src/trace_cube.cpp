@@ -667,8 +667,11 @@ int main(int argc, char** argv)
     // EXTRACT TRIANGLES
     // ============================================================
 
+    RCLCPP_WARN(logger, "triangleExtraction start");
+
     triangleExtraction();
 
+    RCLCPP_WARN(logger, "triangleExtraction done");
 
     if(vectorOfTriangles.empty())
     {
@@ -738,7 +741,7 @@ int main(int argc, char** argv)
             )
             -
             (
-                triangle.normal_x *
+                triangle->normal_x *
                 0.05f
             );
 
@@ -751,7 +754,7 @@ int main(int argc, char** argv)
             0.65f
             -
             (
-                triangle.normal_y *
+                triangle->normal_y *
                 0.05f
             );
 
@@ -762,7 +765,7 @@ int main(int argc, char** argv)
             )
             +
             (
-                triangle.normal_z *
+                triangle->normal_z *
                 0.05f
             );
 
@@ -800,6 +803,8 @@ int main(int argc, char** argv)
     // FIND TRIANGLES WITH FEWEST NEIGHBOURS
     // ============================================================
 
+    RCLCPP_WARN(logger, "leastNeighbours start");
+
     for(std::size_t i = 0;
         i < vectorOfTriangles.size();
         ++i)
@@ -818,6 +823,7 @@ int main(int argc, char** argv)
         }
     }
 
+    RCLCPP_WARN(logger, "leastNeighbours done");
 
     if(!singleNeighbourTrangles.empty())
     {
@@ -831,15 +837,6 @@ int main(int argc, char** argv)
     {
         chosenVector = 2;
     }
-
-
-    // ============================================================
-    // FIND INITIAL REACHABLE TRIANGLE
-    // ============================================================
-
-    // ============================================================
-    // ABORT IF NO INITIAL TRIANGLE WAS REACHABLE
-    // ============================================================
 
 //ggg
     // ============================================================
@@ -879,7 +876,7 @@ int main(int argc, char** argv)
      * Therefore this limit is deliberately generous.
      *
      * Planning is stopped only if thousands of consecutive calls to
-     * startOperation() fail to add even one new traced triangle.
+     * startOperation() fail to add even one new traced triangle->
      */
     const std::size_t MAX_NO_PROGRESS =
         std::max<std::size_t>(
@@ -892,11 +889,26 @@ int main(int argc, char** argv)
     const auto planningStart =
         std::chrono::steady_clock::now();
 
+    RCLCPP_WARN(
+        logger,
+        "statemachine start"
+    );
+
     tracingStateMachine_ctor(&sm);    // must be called first
     tracingStateMachine_start(&sm);   // enters the initial state
 
+    RCLCPP_WARN(
+        logger,
+        "statemachine started"
+    );
+
     while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning)
     {
+        RCLCPP_WARN(
+            logger,
+            "dispatch"
+        );
+        
         tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
  
         // one entry into this state == one old startOperation() call

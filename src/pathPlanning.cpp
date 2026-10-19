@@ -86,6 +86,11 @@ void goHome(){
 bool getTCPpose(){
     auto logger = rclcpp::get_logger("currentTCP");
 
+    RCLCPP_WARN(
+        logger,
+        "getTCPpose"
+    );
+
     try
     {
         if (!tf_buffer->canTransform(
@@ -112,6 +117,11 @@ bool getTCPpose(){
         sm.vars.currentTCP[1] = transform.transform.translation.y;
         sm.vars.currentTCP[2] = transform.transform.translation.z;
 
+        RCLCPP_WARN(
+            logger,
+            "getTCPpose good"
+        );
+
         return true;
     }
     catch (const tf2::TransformException &ex)
@@ -129,6 +139,11 @@ bool getTCPpose(){
 //TODO: make orientation sm var
 void getTCPorientation(double* TCPorientation){
     auto logger = rclcpp::get_logger("getTCPorientation");
+
+    RCLCPP_WARN(
+        logger,
+        "getTCPorient"
+    );
 
     try
     {
@@ -156,6 +171,11 @@ void getTCPorientation(double* TCPorientation){
         TCPorientation[1] = transform.transform.rotation.y;
         TCPorientation[2] = transform.transform.rotation.z;
         TCPorientation[3] = transform.transform.rotation.w;
+
+        RCLCPP_WARN(
+            logger,
+            "getTCPorient success"
+        );
     }
     catch (const tf2::TransformException &ex)
     {
@@ -169,6 +189,11 @@ void getTCPorientation(double* TCPorientation){
 
 bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std::vector<geometry_msgs::msg::Pose> &viaPoses){
     auto logger = rclcpp::get_logger("moveToPoint");
+
+    RCLCPP_WARN(
+        logger,
+        "attempt to move"
+    );
 
     moveit_msgs::msg::RobotTrajectory trajectory;
     //via poses (if any) are visited first, in the same Cartesian path
@@ -215,8 +240,16 @@ bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std
         }
         
         target_poses.pop_back();
+        RCLCPP_WARN(
+            logger,
+            "successful move"
+        );
         return true;
     }else {
+        RCLCPP_WARN(
+            logger,
+            "failed move"
+        );
         target_poses.pop_back();
         return false;
     }
@@ -255,12 +288,22 @@ geometry_msgs::msg::Pose poseFor(Triangle* triangle){
 }
 
 void targetPose(Triangle* triangle){
+    auto logger = rclcpp::get_logger("targetPose");
+    RCLCPP_WARN(
+        logger,
+        "targetPose"
+    );
     sm.vars.triangleToMemorize = triangle;
     sm.vars.oldPose = sm.vars.target_pose;
     sm.vars.target_pose = poseFor(triangle);
 }
 
 geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
+    auto logger = rclcpp::get_logger("liftedPose");
+    RCLCPP_WARN(
+        logger,
+        "liftedPose"
+    );
     geometry_msgs::msg::Pose p = poseFor(triangle);
     p.position.x -= triangle->normal_x * JUMP_LIFT;
     p.position.y -= triangle->normal_y * JUMP_LIFT;
@@ -269,6 +312,11 @@ geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
 }
 
 void edgeTipPose(){
+    auto logger = rclcpp::get_logger("edgeTipPose");
+    RCLCPP_WARN(
+        logger,
+        "edgeTipPose"
+    );
     sm.vars.edgePenTip.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f);
     sm.vars.edgePenTip.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f;
     sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f;
@@ -276,6 +324,11 @@ void edgeTipPose(){
 
 bool moveToPointWithPenRotation(){
     auto logger = rclcpp::get_logger("moveToPointWithPenRotation");
+
+    RCLCPP_WARN(
+        logger,
+        "moveToPointWithPenRotation"
+    );
 
     moveit_msgs::msg::RobotTrajectory trajectory;
     std::vector<geometry_msgs::msg::Pose> target_poses;
@@ -332,6 +385,10 @@ bool moveToPointWithPenRotation(){
         if(!trajectory.joint_trajectory.points.empty()){
             auto current_state_ptr = gripper_group_interface->getCurrentState();
             if(!current_state_ptr){
+                RCLCPP_WARN(
+                    logger,
+                    "moveToPointWithPenRotation fail"
+                );
                 return false;
             }
 
@@ -431,6 +488,11 @@ bool moveToPointWithPenRotation(){
 }
 
 bool goBackOnHistory(){
+    auto logger = rclcpp::get_logger("goBackOnHistory");
+    RCLCPP_WARN(
+        logger,
+        "goBackOnHistory"
+    );
     if(pathHistory.empty()) return false;
     pathHistory.pop();                       // the waypoint we are standing on
     if(pathHistory.empty()) return false;
@@ -452,6 +514,11 @@ bool goBackOnHistory(){
 }
 
 void markAttemptFailed(){
+    auto logger = rclcpp::get_logger("markAttemptFailed");
+    RCLCPP_WARN(
+        logger,
+        "markAttemptFailed"
+    );
     for(std::size_t i = 0; i < sm.vars.previousTriangle->myNeighbours.size(); i++){
         if(sm.vars.previousTriangle->myNeighbours[i] == sm.vars.currentTriangle->myIndex){
             sm.vars.previousTriangle->neighbourFailed[i] = true;
@@ -461,6 +528,11 @@ void markAttemptFailed(){
 }
 
 void edgePoseWithOldOrient(){
+    auto logger = rclcpp::get_logger("edgePoseWithOldOrient");
+    RCLCPP_WARN(
+        logger,
+        "edgePoseWithOldOrient"
+    );
     //use the orientation of the previous triangle to avoid collisions
     sm.vars.target_pose.orientation = poseFor(sm.vars.previousTriangle).orientation;
 
@@ -471,6 +543,11 @@ void edgePoseWithOldOrient(){
 }
 
 void attemptToReachNextClosest(){
+    auto logger = rclcpp::get_logger("attemptToReachNextClosest");
+    RCLCPP_WARN(
+        logger,
+        "attemptToReachNextClosest"
+    );
     sm.vars.iterator = 0;
     while(chosenVector < 3){
         switch (chosenVector){
@@ -489,11 +566,19 @@ void attemptToReachNextClosest(){
         }
         chosenVector++;
     }
+    RCLCPP_WARN(
+        logger,
+        "chosenVector %d", chosenVector
+    );
     sm.vars.size = sm.vars.vectorOfDesiredTriangles.size();
 }
 
 void triangleWithLeastNeighbours(){
     auto logger = rclcpp::get_logger("triangleWithLeastNeighbours");
+    RCLCPP_WARN(
+        logger,
+        "triangleWithLeastNeighbours"
+    );
 
     sm.vars.sortedNeighbours.clear();
     sm.vars.sortedEdges.clear();
@@ -535,13 +620,18 @@ void triangleWithLeastNeighbours(){
     //reorder both vectors according to sort result
     for(int i : order){
         sm.vars.sortedNeighbours.push_back(vectorOfTriangles[validNeighbours[i]]);
-        sm.vars.sortedEdges.push_back(&sm.vars.previousTriangle->triangleEdges[edgeIndices[i]]);
+        sm.vars.sortedEdges.push_back(sm.vars.previousTriangle->triangleEdges[edgeIndices[i]]);
     }
 
     return;
 }
 
 void rememberBranchPoint(){
+    auto logger = rclcpp::get_logger("rememberBranchPoint");
+    RCLCPP_WARN(
+        logger,
+        "rememberBranchPoint"
+    );
     if(sm.vars.previousTriangle->getValidNeighbours() == 0)
         return;
 
@@ -550,6 +640,11 @@ void rememberBranchPoint(){
 }
 
 void getBranchCandidates(){
+    auto logger = rclcpp::get_logger("getBranchCandidates");
+    RCLCPP_WARN(
+        logger,
+        "getBranchCandidates"
+    );
     sm.vars.candidates.clear();
 
     // pathHistory already contains the surface route that reached the dead end
@@ -600,6 +695,11 @@ void getBranchCandidates(){
 }
 
 bool planOMPLPose(){
+    auto logger = rclcpp::get_logger("planOMPLPose");
+    RCLCPP_WARN(
+        logger,
+        "planOMPLPose"
+    );
     gripper_group_interface->setPoseTarget(sm.vars.target_pose);
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
@@ -1174,6 +1274,11 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
 }
 
 void restoreVirtualStartState(){
+    auto logger = rclcpp::get_logger("restoreVirtualStartState");
+    RCLCPP_WARN(
+        logger,
+        "restoreVirtualStartState"
+    );
     auto& sr = stackOfReachableWaypoints;
     if(sr.empty() || sr.top().trajectory.joint_trajectory.points.empty()){
         gripper_group_interface->setStartStateToCurrentState(); return; }

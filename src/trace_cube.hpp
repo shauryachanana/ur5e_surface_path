@@ -133,7 +133,7 @@ struct Triangle{
     float normal_x, normal_y, normal_z = 0;
 
     //three pair of xyz = edges
-    Edge triangleEdges[3];
+    Edge* triangleEdges[3];
     //neighbours
     std::vector<int> myNeighbours = std::vector<int>(3, -1);
     //vars to not trace triangle multiple times
@@ -196,7 +196,7 @@ extern std::vector<Triangle> plannedPath;
 
 void triangleExtraction();
 
-float distanceToTCP(Triangle &triangle, double* currentTCP);
+float distanceToTCP(Triangle* triangle);
 //converts the (stack-ordered, most-recent-first) planning history into the
 //chronological sequence it was produced in, without consuming pathHistory
 std::vector<Waypoint> extractOrderedPath(std::stack<Waypoint> stackCopy);

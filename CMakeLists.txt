@@ -24,6 +24,7 @@ add_executable(hello_moveit src/hello_moveit.cpp)
 add_executable(
   trace_cube 
   src/trace_cube.cpp
+  src/stateMachineIKU/tracingStateMachine.cpp
   src/trianglesOperations.cpp
   src/pathPlanning.cpp
   src/pointCloudOperations.cpp
@@ -52,6 +53,7 @@ target_link_libraries(trace_cube
 
 target_include_directories(trace_cube PUBLIC
   ${PCL_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 add_definitions(${PCL_DEFINITIONS})
