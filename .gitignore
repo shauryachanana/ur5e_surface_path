@@ -1,5 +1,19 @@
-.vscode/
-*.db
-build/
-install/
-log/
+# ROS 2 generated directories
+/build/
+/install/
+/log/
+
+# VS Code temporary files
+.vscode/*.db
+.vscode/*.db-lock
+.vscode/*.db.lock
+
+# Compiled files
+*.o
+*.o.d
+*.so
+*.a
+
+# Python cache
+__pycache__/
+*.pyc
