@@ -3,6 +3,8 @@
 #include <iostream>
 #include <climits>
 
+extern tracingStateMachine sm;
+
 std::stack<Waypoint> pathHistory;
 std::stack<Waypoint> stackOfReachableWaypoints;
 extern std::vector<bool> traced;
@@ -220,61 +222,50 @@ bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std
     }
 }
 
-void poseFor(Triangle* triangle){
-    sm.vars.target_pose.position.x = - (triangle->centreOfTriangle[0] * 0.001f) - (triangle->normal_x * PEN_LENGTH);
-    sm.vars.target_pose.position.y = - (triangle->centreOfTriangle[1] * 0.001f) + 0.65f - (triangle->normal_y * PEN_LENGTH);
-    sm.vars.target_pose.position.z = (triangle->centreOfTriangle[2] * 0.001f) + 0.2f + (triangle->normal_z * PEN_LENGTH);
+geometry_msgs::msg::Pose poseFor(Triangle* triangle){
+    geometry_msgs::msg::Pose p;
+    p.position.x = - (triangle->centreOfTriangle[0] * 0.001f) - (triangle->normal_x * PEN_LENGTH);
+    p.position.y = - (triangle->centreOfTriangle[1] * 0.001f) + 0.65f - (triangle->normal_y * PEN_LENGTH);
+    p.position.z = (triangle->centreOfTriangle[2] * 0.001f) + 0.2f + (triangle->normal_z * PEN_LENGTH);
 
-    tf2::Vector3 normal(
-        - triangle->normal_x,
-        - triangle->normal_y,
-        triangle->normal_z
-    );
-
+    tf2::Vector3 normal(-triangle->normal_x, -triangle->normal_y, triangle->normal_z);
     normal.normalize();
-
-    tf2::Vector3 z_axis = - normal;  // Z into the surface
+    tf2::Vector3 z_axis = -normal;
     z_axis.normalize();
-
     tf2::Vector3 world_up(0.0, 0.0, 1.0);
     if (std::abs(z_axis.dot(world_up)) > 0.99) {
         world_up = tf2::Vector3(1.0, 0.0, 0.0);
     }
-
     tf2::Vector3 x_axis = world_up.cross(z_axis);
     x_axis.normalize();
-
     tf2::Vector3 y_axis = z_axis.cross(x_axis);
     y_axis.normalize();
-
     tf2::Matrix3x3 rot(
         x_axis.x(), y_axis.x(), z_axis.x(),
         x_axis.y(), y_axis.y(), z_axis.y(),
-        x_axis.z(), y_axis.z(), z_axis.z()
-    );
-
+        x_axis.z(), y_axis.z(), z_axis.z());
     tf2::Quaternion q;
     rot.getRotation(q);
     q.normalize();
-
-    sm.vars.target_pose.orientation.x = q.x();
-    sm.vars.target_pose.orientation.y = q.y();
-    sm.vars.target_pose.orientation.z = q.z();
-    sm.vars.target_pose.orientation.w = q.w();
+    p.orientation.x = q.x();
+    p.orientation.y = q.y();
+    p.orientation.z = q.z();
+    p.orientation.w = q.w();
+    return p;
 }
 
 void targetPose(Triangle* triangle){
     sm.vars.triangleToMemorize = triangle;
     sm.vars.oldPose = sm.vars.target_pose;
-    poseFor(triangle);
+    sm.vars.target_pose = poseFor(triangle);
 }
 
-void liftedPose(Triangle* triangle){
-    sm.vars.triangleToMemorize = triangle;
-    poseFor(triangle)
-    sm.vars.target_pose.position.x -= triangle->normal_x * JUMP_LIFT;
-    sm.vars.target_pose.position.y -= triangle->normal_y * JUMP_LIFT;
-    sm.vars.target_pose.position.z += triangle->normal_z * JUMP_LIFT;
+geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
+    geometry_msgs::msg::Pose p = poseFor(triangle);
+    p.position.x -= triangle->normal_x * JUMP_LIFT;
+    p.position.y -= triangle->normal_y * JUMP_LIFT;
+    p.position.z += triangle->normal_z * JUMP_LIFT;
+    return p;
 }
 
 void edgeTipPose(){
@@ -471,7 +462,7 @@ void markAttemptFailed(){
 
 void edgePoseWithOldOrient(){
     //use the orientation of the previous triangle to avoid collisions
-    poseFor(sm.vars.previousTriangle);
+    sm.vars.target_pose.orientation = poseFor(sm.vars.previousTriangle).orientation;
 
     //keep orientation, update position
     sm.vars.target_pose.position.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f) - (sm.vars.previousTriangle->normal_x * PEN_LENGTH);
@@ -916,7 +907,7 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
             continue;
         }
 
-        int64_t previousLocalTimeNs = StartTimeNs;
+        int64_t previousLocalTimeNs = segmentStartTimeNs;
 
         for(std::size_t pointIndex =
                 firstPointToCopy;

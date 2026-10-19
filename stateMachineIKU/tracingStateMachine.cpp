@@ -171,12 +171,6 @@ static void FINISHTRANSBETWEENTRIANGLESSTATE_exit(tracingStateMachine* sm);
 
 static void FINISHTRANSBETWEENTRIANGLESSTATE_do(tracingStateMachine* sm);
 
-static void JUMP_enter(tracingStateMachine* sm);
-
-static void JUMP_exit(tracingStateMachine* sm);
-
-static void JUMP_do(tracingStateMachine* sm);
-
 static void MOVEFROMEDGESTATE_enter(tracingStateMachine* sm);
 
 static void MOVEFROMEDGESTATE_exit(tracingStateMachine* sm);
@@ -394,11 +388,6 @@ void tracingStateMachine_dispatch_event(tracingStateMachine* sm, tracingStateMac
             FINISHTRANSBETWEENTRIANGLESSTATE_do(sm); 
             break;
         
-        // STATE: jump
-        case tracingStateMachine_StateId_JUMP:
-            JUMP_do(sm); 
-            break;
-        
         // STATE: moveFromEdgeState
         case tracingStateMachine_StateId_MOVEFROMEDGESTATE:
             MOVEFROMEDGESTATE_do(sm); 
@@ -489,8 +478,6 @@ static void exit_up_to_state_handler(tracingStateMachine* sm, tracingStateMachin
             
             case tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE: FINISHTRANSBETWEENTRIANGLESSTATE_exit(sm); break;
             
-            case tracingStateMachine_StateId_JUMP: JUMP_exit(sm); break;
-            
             case tracingStateMachine_StateId_MOVEFROMEDGESTATE: MOVEFROMEDGESTATE_exit(sm); break;
             
             case tracingStateMachine_StateId_MOVETOEDGESTATE: MOVETOEDGESTATE_exit(sm); break;
@@ -546,10 +533,10 @@ static void ABORTSTATE_exit(tracingStateMachine* sm)
 static void ABORTSTATE_do(tracingStateMachine* sm)
 {
     // abortState behavior
-    // uml: do / { abort(); }
+    // uml: do / { diedAtTheBeginning = true; }
     {
-        // Step 1: execute action `abort();`
-        abort();
+        // Step 1: execute action `diedAtTheBeginning = true;`
+        sm->vars.diedAtTheBeginning = true;
     } // end of behavior for abortState
     
     // No ancestor handles this event.
@@ -631,8 +618,8 @@ static void ATTEMPTNEXTCLOSESTSTATE_do(tracingStateMachine* sm)
     } // end of behavior for attemptNextClosestState
     
     // attemptNextClosestState behavior
-    // uml: do [chosenVector > = 3\n&& initialTriangle != AttemptToReach::TRIANGLE_REACHED] TransitionTo(abortState)
-    if (chosenVector > = 3&& sm->vars.initialTriangle != AttemptToReach::TRIANGLE_REACHED)
+    // uml: do [chosenVector >= 3 && initialTriangle != AttemptToReach::TRIANGLE_REACHED] TransitionTo(abortState)
+    if (chosenVector >= 3 && sm->vars.initialTriangle != AttemptToReach::TRIANGLE_REACHED)
     {
         // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
         ATTEMPTNEXTCLOSESTSTATE_exit(sm);
@@ -913,10 +900,10 @@ static void FAILEDJUMPSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_FAILEDJUMPSTATE;
     
     // failedJumpState behavior
-    // uml: enter / { currentTriangle->unreachableCounter++; }
+    // uml: enter / { restoreVirtualStartState(); }
     {
-        // Step 1: execute action `currentTriangle->unreachableCounter++;`
-        sm->vars.currentTriangle->unreachableCounter++;
+        // Step 1: execute action `restoreVirtualStartState();`
+        restoreVirtualStartState();
     } // end of behavior for failedJumpState
 }
 
@@ -935,9 +922,10 @@ static void FAILEDJUMPSTATE_exit(tracingStateMachine* sm)
 static void FAILEDJUMPSTATE_do(tracingStateMachine* sm)
 {
     // failedJumpState behavior
-    // uml: do
+    // uml: do / { currentTriangle->unreachableCounter++; }
     {
-        // Step 1: execute action ``
+        // Step 1: execute action `currentTriangle->unreachableCounter++;`
+        sm->vars.currentTriangle->unreachableCounter++;
     } // end of behavior for failedJumpState
     
     // failedJumpState behavior
@@ -968,10 +956,10 @@ static void GETCANDIDATESSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_GETCANDIDATESSTATE;
     
     // getCandidatesState behavior
-    // uml: enter / { getBranchCandidates(); }
+    // uml: enter / { jumpFrom = previousTriangle; }
     {
-        // Step 1: execute action `getBranchCandidates();`
-        getBranchCandidates();
+        // Step 1: execute action `jumpFrom = previousTriangle;`
+        sm->vars.jumpFrom = sm->vars.previousTriangle;
     } // end of behavior for getCandidatesState
 }
 
@@ -990,9 +978,10 @@ static void GETCANDIDATESSTATE_exit(tracingStateMachine* sm)
 static void GETCANDIDATESSTATE_do(tracingStateMachine* sm)
 {
     // getCandidatesState behavior
-    // uml: do / { candidateSize = candidates.size(); }
+    // uml: do / { getBranchCandidates();\ncandidateSize = candidates.size(); }
     {
-        // Step 1: execute action `candidateSize = candidates.size();`
+        // Step 1: execute action `getBranchCandidates();\ncandidateSize = candidates.size();`
+        getBranchCandidates();
         sm->vars.candidateSize = sm->vars.candidates.size();
     } // end of behavior for getCandidatesState
     
@@ -1008,6 +997,21 @@ static void GETCANDIDATESSTATE_do(tracingStateMachine* sm)
         // Step 3: Enter/move towards transition target `triangSetupState`.
         JUMPTOTRIANGLESTATE_enter(sm);
         TRIANGSETUPSTATE_enter(sm);
+        
+        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
+        return;
+    } // end of behavior for getCandidatesState
+    
+    // getCandidatesState behavior
+    // uml: else do TransitionTo(backtrackState)
+    {
+        // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
+        exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
+        
+        // Step 2: Transition action: ``.
+        
+        // Step 3: Enter/move towards transition target `backtrackState`.
+        BACKTRACKSTATE_enter(sm);
         
         // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
         return;
@@ -1034,13 +1038,29 @@ static void ITER_exit(tracingStateMachine* sm)
 static void ITER_do(tracingStateMachine* sm)
 {
     // iter behavior
-    // uml: else do / { opSuccess = 0 } TransitionTo(backtrackState)
+    // uml: do [jumpIterator < candidateSize] TransitionTo(triangSetupState)
+    if (sm->vars.jumpIterator < sm->vars.candidateSize)
+    {
+        // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
+        ITER_exit(sm);
+        
+        // Step 2: Transition action: ``.
+        
+        // Step 3: Enter/move towards transition target `triangSetupState`.
+        JUMPTOTRIANGLESTATE_enter(sm);
+        TRIANGSETUPSTATE_enter(sm);
+        
+        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
+        return;
+    } // end of behavior for iter
+    
+    // iter behavior
+    // uml: do TransitionTo(backtrackState)
     {
         // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
         exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
         
-        // Step 2: Transition action: `opSuccess = 0`.
-        sm->vars.opSuccess = 0
+        // Step 2: Transition action: ``.
         
         // Step 3: Enter/move towards transition target `backtrackState`.
         BACKTRACKSTATE_enter(sm);
@@ -1141,14 +1161,15 @@ static void FALLBACKPREPSTATE_do(tracingStateMachine* sm)
     } // end of behavior for fallbackPrepState
     
     // fallbackPrepState behavior
-    // uml: do [!currentState] / { jumpIterator++ } TransitionTo(iter)
+    // uml: do [!currentState] / { jumpIterator++; \ncurrentTriangle->unreachableCounter++; } TransitionTo(iter)
     if (!sm->vars.currentState)
     {
         // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).
         exit_up_to_state_handler(sm, tracingStateMachine_StateId_JUMPTOBRANCHSTATE);
         
-        // Step 2: Transition action: `jumpIterator++`.
-        sm->vars.jumpIterator++
+        // Step 2: Transition action: `jumpIterator++; \ncurrentTriangle->unreachableCounter++;`.
+        sm->vars.jumpIterator++; 
+        sm->vars.currentTriangle->unreachableCounter++;
         
         // Step 3: Enter/move towards transition target `iter`.
         ITER_enter(sm);
@@ -1185,9 +1206,10 @@ static void LIFTEDPOSERANDOMTRAJSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_LIFTEDPOSERANDOMTRAJSTATE;
     
     // liftedPoseRandomTrajState behavior
-    // uml: enter / { target_pose = liftedPose(currentTriangle); }
+    // uml: enter / { triangleToMemorize = currentTriangle;\ntarget_pose = liftedPose(currentTriangle); }
     {
-        // Step 1: execute action `target_pose = liftedPose(currentTriangle);`
+        // Step 1: execute action `triangleToMemorize = currentTriangle;\ntarget_pose = liftedPose(currentTriangle);`
+        sm->vars.triangleToMemorize = sm->vars.currentTriangle;
         sm->vars.target_pose = liftedPose(sm->vars.currentTriangle);
     } // end of behavior for liftedPoseRandomTrajState
 }
@@ -1256,10 +1278,10 @@ static void LIFTEDPOSESTARIGHTLINESTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_LIFTEDPOSESTARIGHTLINESTATE;
     
     // liftedPoseStarightLineState behavior
-    // uml: enter / { moveit::core::RobotState savedState(currentState);\ntarget_pose = liftedPose(previousTriangle); }
+    // uml: enter / { triangleToMemorize = previousTriangle;\ntarget_pose = liftedPose(previousTriangle); }
     {
-        // Step 1: execute action `moveit::core::RobotState savedState(currentState);\ntarget_pose = liftedPose(previousTriangle);`
-        moveit::core::RobotState savedState(sm->vars.currentState);
+        // Step 1: execute action `triangleToMemorize = previousTriangle;\ntarget_pose = liftedPose(previousTriangle);`
+        sm->vars.triangleToMemorize = sm->vars.previousTriangle;
         sm->vars.target_pose = liftedPose(sm->vars.previousTriangle);
     } // end of behavior for liftedPoseStarightLineState
 }
@@ -1351,11 +1373,11 @@ static void MOVEWITHLIFTSTATE_exit(tracingStateMachine* sm)
 static void MOVEWITHLIFTSTATE_do(tracingStateMachine* sm)
 {
     // moveWithLiftState behavior
-    // uml: do / { opSuccess = \nmoverToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n); }
+    // uml: do / { opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n); }
     {
-        // Step 1: execute action `opSuccess = \nmoverToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);`
+        // Step 1: execute action `opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);`
         sm->vars.opSuccess = 
-        moverToPoint(
+        moveToPoint(
         movementDirection::FORWARD, 
         waypointType::TRIANGLE,
         {liftedPose(sm->vars.previousTriangle), liftedPose(sm->vars.currentTriangle)}
@@ -1427,10 +1449,10 @@ static void TARGETPOSESTRAIGHTLINESTATE_exit(tracingStateMachine* sm)
 static void TARGETPOSESTRAIGHTLINESTATE_do(tracingStateMachine* sm)
 {
     // targetPoseStraightLineState behavior
-    // uml: do / { oparationSuccessCatcher = moveToPoint(\nmovementDirection::FORWARD\n); }
+    // uml: do / { opSuccess = moveToPoint(\nmovementDirection::FORWARD\n); }
     {
-        // Step 1: execute action `oparationSuccessCatcher = moveToPoint(\nmovementDirection::FORWARD\n);`
-        oparationSuccessCatcher = moveToPoint(
+        // Step 1: execute action `opSuccess = moveToPoint(\nmovementDirection::FORWARD\n);`
+        sm->vars.opSuccess = moveToPoint(
         movementDirection::FORWARD
         );
     } // end of behavior for targetPoseStraightLineState
@@ -1499,11 +1521,11 @@ static void TRIANGSETUPSTATE_exit(tracingStateMachine* sm)
 static void TRIANGSETUPSTATE_do(tracingStateMachine* sm)
 {
     // triangSetupState behavior
-    // uml: do / { previousTriangle = currentTriangle;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]]; }
+    // uml: do / { previousTriangle = jumpFrom;\ncurrentTriangle = candidates[jumpIterator].triangle; }
     {
-        // Step 1: execute action `previousTriangle = currentTriangle;\ncurrentTriangle = vectorOfTriangles[candidates[jumpIterator]];`
-        sm->vars.previousTriangle = sm->vars.currentTriangle;
-        sm->vars.currentTriangle = vectorOfTriangles[sm->vars.candidates[sm->vars.jumpIterator]];
+        // Step 1: execute action `previousTriangle = jumpFrom;\ncurrentTriangle = candidates[jumpIterator].triangle;`
+        sm->vars.previousTriangle = sm->vars.jumpFrom;
+        sm->vars.currentTriangle = sm->vars.candidates[sm->vars.jumpIterator].triangle;
     } // end of behavior for triangSetupState
     
     // triangSetupState behavior
@@ -1542,12 +1564,13 @@ static void SUCC_exit(tracingStateMachine* sm)
 static void SUCC_do(tracingStateMachine* sm)
 {
     // succ behavior
-    // uml: do TransitionTo(leastNeighboursSearchState)
+    // uml: do / { lastUsefulWaypointCount = stackOfReachableWaypoints.size(); } TransitionTo(leastNeighboursSearchState)
     {
         // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
         exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
         
-        // Step 2: Transition action: ``.
+        // Step 2: Transition action: `lastUsefulWaypointCount = stackOfReachableWaypoints.size();`.
+        lastUsefulWaypointCount = stackOfReachableWaypoints.size();
         
         // Step 3: Enter/move towards transition target `leastNeighboursSearchState`.
         LEASTNEIGHBOURSSEARCHSTATE_enter(sm);
@@ -1569,10 +1592,11 @@ static void LEASTNEIGHBOURSSEARCHSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE;
     
     // leastNeighboursSearchState behavior
-    // uml: enter / { previousTriangle = currentTriangle;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();} }
+    // uml: enter / { previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();} }
     {
-        // Step 1: execute action `previousTriangle = currentTriangle;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}`
+        // Step 1: execute action `previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}`
         sm->vars.previousTriangle = sm->vars.currentTriangle;
+        sm->vars.iterator = 0;
         if(pathHistory.empty() && stackOfReachableWaypoints.empty()){
                 branchPoints.clear();}
     } // end of behavior for leastNeighboursSearchState
@@ -1616,34 +1640,17 @@ static void LEASTNEIGHBOURSSEARCHSTATE_do(tracingStateMachine* sm)
     } // end of behavior for leastNeighboursSearchState
     
     // leastNeighboursSearchState behavior
-    // uml: do [(sortedNeighbours.empty() ||\nsortedEdges.empty() )&&\nopSuccess] / { jumpIterator = 0 } TransitionTo(getCandidatesState)
-    if ((sm->vars.sortedNeighbours.empty() ||sm->vars.sortedEdges.empty() )&&sm->vars.opSuccess)
+    // uml: else do / { jumpIterator = 0; } TransitionTo(getCandidatesState)
     {
         // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
         LEASTNEIGHBOURSSEARCHSTATE_exit(sm);
         
-        // Step 2: Transition action: `jumpIterator = 0`.
-        sm->vars.jumpIterator = 0
+        // Step 2: Transition action: `jumpIterator = 0;`.
+        sm->vars.jumpIterator = 0;
         
         // Step 3: Enter/move towards transition target `getCandidatesState`.
         JUMPTOBRANCHSTATE_enter(sm);
         GETCANDIDATESSTATE_enter(sm);
-        
-        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
-        return;
-    } // end of behavior for leastNeighboursSearchState
-    
-    // leastNeighboursSearchState behavior
-    // uml: do [!opSuccess] TransitionTo(allPlanned)
-    if (!sm->vars.opSuccess)
-    {
-        // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
-        LEASTNEIGHBOURSSEARCHSTATE_exit(sm);
-        
-        // Step 2: Transition action: ``.
-        
-        // Step 3: Enter/move towards transition target `allPlanned`.
-        ALLPLANNED_enter(sm);
         
         // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
         return;
@@ -1821,16 +1828,16 @@ static void MOVESTATEINREACHING_exit(tracingStateMachine* sm)
 static void MOVESTATEINREACHING_do(tracingStateMachine* sm)
 {
     // moveStateInReaching behavior
-    // uml: do / { targetPose(currentTriangle);\nopSuccess  = moveToPoint();\nif(opSuccess){\ntarget.traced = true;\ntraced[target.myIndex] = true;\ninitialTriangle = AttemptToReach::TRIANGLE_REACHED;\n} }
+    // uml: do / { targetPose(currentTriangle);\nopSuccess  = moveToPoint();\nif(opSuccess){\ncurrentTriangle->traced = true;\n        traced[currentTriangle->myIndex] = true;\n        initialTriangle = AttemptToReach::TRIANGLE_REACHED;\n        lastUsefulWaypointCount = stackOfReachableWaypoints.size();} }
     {
-        // Step 1: execute action `targetPose(currentTriangle);\nopSuccess  = moveToPoint();\nif(opSuccess){\ntarget.traced = true;\ntraced[target.myIndex] = true;\ninitialTriangle = AttemptToReach::TRIANGLE_REACHED;\n}`
+        // Step 1: execute action `targetPose(currentTriangle);\nopSuccess  = moveToPoint();\nif(opSuccess){\ncurrentTriangle->traced = true;\n        traced[currentTriangle->myIndex] = true;\n        initialTriangle = AttemptToReach::TRIANGLE_REACHED;\n        lastUsefulWaypointCount = stackOfReachableWaypoints.size();}`
         targetPose(sm->vars.currentTriangle);
         sm->vars.opSuccess  = moveToPoint();
         if(sm->vars.opSuccess){
-        target.traced = true;
-        traced[target.myIndex] = true;
-        sm->vars.initialTriangle = AttemptToReach::TRIANGLE_REACHED;
-        }
+        sm->vars.currentTriangle->traced = true;
+                traced[sm->vars.currentTriangle->myIndex] = true;
+                sm->vars.initialTriangle = AttemptToReach::TRIANGLE_REACHED;
+                lastUsefulWaypointCount = stackOfReachableWaypoints.size();}
     } // end of behavior for moveStateInReaching
     
     // moveStateInReaching behavior
@@ -1898,11 +1905,11 @@ static void REACHFAILED_exit(tracingStateMachine* sm)
 static void REACHFAILED_do(tracingStateMachine* sm)
 {
     // reachFailed behavior
-    // uml: do / { vectorOfDesiredTriangles[target].unreachableCounter++;\nvectorOfDesiredTriangles.erase(vectorOfDesiredTriangles.begin() + target); }
+    // uml: do / { vectorOfDesiredTriangles[closestIdx]->unreachableCounter++;\nvectorOfDesiredTriangles.erase(vectorOfDesiredTriangles.begin() + closestIdx); }
     {
-        // Step 1: execute action `vectorOfDesiredTriangles[target].unreachableCounter++;\nvectorOfDesiredTriangles.erase(vectorOfDesiredTriangles.begin() + target);`
-        sm->vars.vectorOfDesiredTriangles[target].unreachableCounter++;
-        sm->vars.vectorOfDesiredTriangles.erase(sm->vars.vectorOfDesiredTriangles.begin() + target);
+        // Step 1: execute action `vectorOfDesiredTriangles[closestIdx]->unreachableCounter++;\nvectorOfDesiredTriangles.erase(vectorOfDesiredTriangles.begin() + closestIdx);`
+        sm->vars.vectorOfDesiredTriangles[sm->vars.closestIdx]->unreachableCounter++;
+        sm->vars.vectorOfDesiredTriangles.erase(sm->vars.vectorOfDesiredTriangles.begin() + sm->vars.closestIdx);
     } // end of behavior for reachFailed
     
     // reachFailed behavior
@@ -1922,13 +1929,13 @@ static void REACHFAILED_do(tracingStateMachine* sm)
     } // end of behavior for reachFailed
     
     // reachFailed behavior
-    // uml: do / { chosenVector++ } TransitionTo(attemptNextClosestState)
+    // uml: do / { chosenVector++; } TransitionTo(attemptNextClosestState)
     {
         // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
         exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
         
-        // Step 2: Transition action: `chosenVector++`.
-        chosenVector++
+        // Step 2: Transition action: `chosenVector++;`.
+        chosenVector++;
         
         // Step 3: Enter/move towards transition target `attemptNextClosestState`.
         ATTEMPTNEXTCLOSESTSTATE_enter(sm);
@@ -1987,13 +1994,14 @@ static void FINISHTRANSBETWEENTRIANGLESSTATE_exit(tracingStateMachine* sm)
 static void FINISHTRANSBETWEENTRIANGLESSTATE_do(tracingStateMachine* sm)
 {
     // finishTransBetweenTrianglesState behavior
-    // uml: do / { currentTriangle->traced = true;\ntraced[currentTriangle->myIndex] = true;\niterator = 0;\nrememberBranchPoint(); }
+    // uml: do / { currentTriangle->traced = true;\ntraced[currentTriangle->myIndex] = true;\niterator = 0;\nrememberBranchPoint();\nlastUsefulWaypointCount = stackOfReachableWaypoints.size(); }
     {
-        // Step 1: execute action `currentTriangle->traced = true;\ntraced[currentTriangle->myIndex] = true;\niterator = 0;\nrememberBranchPoint();`
+        // Step 1: execute action `currentTriangle->traced = true;\ntraced[currentTriangle->myIndex] = true;\niterator = 0;\nrememberBranchPoint();\nlastUsefulWaypointCount = stackOfReachableWaypoints.size();`
         sm->vars.currentTriangle->traced = true;
         traced[sm->vars.currentTriangle->myIndex] = true;
         sm->vars.iterator = 0;
         rememberBranchPoint();
+        lastUsefulWaypointCount = stackOfReachableWaypoints.size();
     } // end of behavior for finishTransBetweenTrianglesState
     
     // finishTransBetweenTrianglesState behavior
@@ -2010,43 +2018,6 @@ static void FINISHTRANSBETWEENTRIANGLESSTATE_do(tracingStateMachine* sm)
         // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
         return;
     } // end of behavior for finishTransBetweenTrianglesState
-    
-    // No ancestor handles this event.
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-// event handlers for state JUMP
-////////////////////////////////////////////////////////////////////////////////
-
-static void JUMP_enter(tracingStateMachine* sm)
-{
-    sm->state_id = tracingStateMachine_StateId_JUMP;
-}
-
-static void JUMP_exit(tracingStateMachine* sm)
-{
-    sm->state_id = tracingStateMachine_StateId_TRACENEIGHBOURSTATE;
-}
-
-static void JUMP_do(tracingStateMachine* sm)
-{
-    // jump behavior
-    // uml: do / { jumpIterator = 0 } TransitionTo(getCandidatesState)
-    {
-        // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
-        exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
-        
-        // Step 2: Transition action: `jumpIterator = 0`.
-        sm->vars.jumpIterator = 0
-        
-        // Step 3: Enter/move towards transition target `getCandidatesState`.
-        JUMPTOBRANCHSTATE_enter(sm);
-        GETCANDIDATESSTATE_enter(sm);
-        
-        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
-        return;
-    } // end of behavior for jump
     
     // No ancestor handles this event.
 }
@@ -2154,11 +2125,11 @@ static void MOVETOEDGESTATE_exit(tracingStateMachine* sm)
 static void MOVETOEDGESTATE_do(tracingStateMachine* sm)
 {
     // moveToEdgeState behavior
-    // uml: do / { edgePoseWithOldOrient();\nopSuccess  = moveToPoint(); }
+    // uml: do / { edgePoseWithOldOrient();\nopSuccess  = moveToPoint(movementDirection::FORWARD, waypointType::EDGE); }
     {
-        // Step 1: execute action `edgePoseWithOldOrient();\nopSuccess  = moveToPoint();`
+        // Step 1: execute action `edgePoseWithOldOrient();\nopSuccess  = moveToPoint(movementDirection::FORWARD, waypointType::EDGE);`
         edgePoseWithOldOrient();
-        sm->vars.opSuccess  = moveToPoint();
+        sm->vars.opSuccess  = moveToPoint(movementDirection::FORWARD, waypointType::EDGE);
     } // end of behavior for moveToEdgeState
     
     // moveToEdgeState behavior
@@ -2172,22 +2143,6 @@ static void MOVETOEDGESTATE_do(tracingStateMachine* sm)
         
         // Step 3: Enter/move towards transition target `rotateAroundEdgeState`.
         ROTATEAROUNDEDGESTATE_enter(sm);
-        
-        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
-        return;
-    } // end of behavior for moveToEdgeState
-    
-    // moveToEdgeState behavior
-    // uml: do [iterator > (int)sortedNeighbours.size()] TransitionTo(jump)
-    if (sm->vars.iterator > (int)sm->vars.sortedNeighbours.size())
-    {
-        // Step 1: Exit states until we reach `traceNeighbourState` state (Least Common Ancestor for transition).
-        MOVETOEDGESTATE_exit(sm);
-        
-        // Step 2: Transition action: ``.
-        
-        // Step 3: Enter/move towards transition target `jump`.
-        JUMP_enter(sm);
         
         // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
         return;
@@ -2241,16 +2196,16 @@ static void POPHISTRORYANDMOVEBACKSTATE_exit(tracingStateMachine* sm)
 static void POPHISTRORYANDMOVEBACKSTATE_do(tracingStateMachine* sm)
 {
     // popHistroryAndMoveBackState behavior
-    // uml: do / { if(!pathHistory.empty() &&\n                    pathHistory.top().typeOfWaypoint == waypointType::EDGE)\n                    {\n                            pathHistory.pop(); \n         }\ntargetPose(previousTriangle);\nmoveToPoint(); }
+    // uml: do / { if(!pathHistory.empty() &&\n                    pathHistory.top().typeOfWaypoint == waypointType::EDGE)\n                    {\n                            pathHistory.pop(); \n         }\ntargetPose(previousTriangle);\nmoveToPoint(movementDirection::BACKWARDS); }
     {
-        // Step 1: execute action `if(!pathHistory.empty() &&\n                    pathHistory.top().typeOfWaypoint == waypointType::EDGE)\n                    {\n                            pathHistory.pop(); \n         }\ntargetPose(previousTriangle);\nmoveToPoint();`
+        // Step 1: execute action `if(!pathHistory.empty() &&\n                    pathHistory.top().typeOfWaypoint == waypointType::EDGE)\n                    {\n                            pathHistory.pop(); \n         }\ntargetPose(previousTriangle);\nmoveToPoint(movementDirection::BACKWARDS);`
         if(!pathHistory.empty() &&
                             pathHistory.top().typeOfWaypoint == waypointType::EDGE)
                             {
                                     pathHistory.pop(); 
                  }
         targetPose(sm->vars.previousTriangle);
-        moveToPoint();
+        moveToPoint(movementDirection::BACKWARDS);
     } // end of behavior for popHistroryAndMoveBackState
     
     // popHistroryAndMoveBackState behavior
@@ -2397,15 +2352,17 @@ static void UPDVALSONFAILSTATE_do(tracingStateMachine* sm)
     } // end of behavior for updValsOnFailState
     
     // updValsOnFailState behavior
-    // uml: else do TransitionTo(jump)
+    // uml: else do / { lastUsefulWaypointCount = stackOfReachableWaypoints.size(); jumpIterator = 0; } TransitionTo(getCandidatesState)
     {
-        // Step 1: Exit states until we reach `traceNeighbourState` state (Least Common Ancestor for transition).
-        UPDVALSONFAILSTATE_exit(sm);
+        // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
+        exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
         
-        // Step 2: Transition action: ``.
+        // Step 2: Transition action: `lastUsefulWaypointCount = stackOfReachableWaypoints.size(); jumpIterator = 0;`.
+        lastUsefulWaypointCount = stackOfReachableWaypoints.size(); sm->vars.jumpIterator = 0;
         
-        // Step 3: Enter/move towards transition target `jump`.
-        JUMP_enter(sm);
+        // Step 3: Enter/move towards transition target `getCandidatesState`.
+        JUMPTOBRANCHSTATE_enter(sm);
+        GETCANDIDATESSTATE_enter(sm);
         
         // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
         return;
@@ -2447,7 +2404,6 @@ char const * tracingStateMachine_state_id_to_string(tracingStateMachine_StateId 
         case tracingStateMachine_StateId_REACHFAILED: return "REACHFAILED";
         case tracingStateMachine_StateId_TRACENEIGHBOURSTATE: return "TRACENEIGHBOURSTATE";
         case tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE: return "FINISHTRANSBETWEENTRIANGLESSTATE";
-        case tracingStateMachine_StateId_JUMP: return "JUMP";
         case tracingStateMachine_StateId_MOVEFROMEDGESTATE: return "MOVEFROMEDGESTATE";
         case tracingStateMachine_StateId_MOVETOEDGESTATE: return "MOVETOEDGESTATE";
         case tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE: return "POPHISTRORYANDMOVEBACKSTATE";

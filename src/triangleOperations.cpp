@@ -1,6 +1,8 @@
 #include "trace_cube.hpp"
 #include "stateMachineIKU/tracingStateMachine.hpp"
 
+extern tracingStateMachine sm;
+
 // std::unordered_map<std::pair<int,int>, int> edgeDetection;
 std::unordered_map<std::pair<int,int>, int, PairHash> edgeDetection;
 
@@ -89,16 +91,18 @@ void getClosestTriangle(){
     getTCPpose();
     float minDist = 100000;
     for(unsigned int i = 0; i < sm.vars.vectorOfDesiredTriangles.size(); i++){
-        float distanceToTriangle = distanceToTCP(sm.vars.vectorOfDesiredTriangles[i], sm.vars.currentTCP);
+        float distanceToTriangle = distanceToTCP(*sm.vars.vectorOfDesiredTriangles[i], sm.vars.currentTCP);
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             bestCandodateIndex = i;
-        }else if(distanceToTriangle == minDist){
-            if(sm.vars.vectorOfDesiredTriangles[i].centreOfTriangle[2] < sm.vars.vectorOfDesiredTriangles[bestCandodateIndex].centreOfTriangle[2]){
-                bestCandodateIndex = i;
-            }
+        }else if((distanceToTriangle == minDist) &&
+                (sm.vars.vectorOfDesiredTriangles[i]->centreOfTriangle[2] < 
+                sm.vars.vectorOfDesiredTriangles[bestCandodateIndex]->centreOfTriangle[2]))
+        {
+            bestCandodateIndex = i;
         }
     }
+    sm.vars.closestIdx = bestCandodateIndex;
     sm.vars.currentTriangle = sm.vars.vectorOfDesiredTriangles[bestCandodateIndex];
 }
 

@@ -62,17 +62,16 @@ typedef enum tracingStateMachine_StateId
     tracingStateMachine_StateId_REACHFAILED = 25,
     tracingStateMachine_StateId_TRACENEIGHBOURSTATE = 26,
     tracingStateMachine_StateId_FINISHTRANSBETWEENTRIANGLESSTATE = 27,
-    tracingStateMachine_StateId_JUMP = 28,
-    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 29,
-    tracingStateMachine_StateId_MOVETOEDGESTATE = 30,
-    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 31,
-    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 32,
-    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 33
+    tracingStateMachine_StateId_MOVEFROMEDGESTATE = 28,
+    tracingStateMachine_StateId_MOVETOEDGESTATE = 29,
+    tracingStateMachine_StateId_POPHISTRORYANDMOVEBACKSTATE = 30,
+    tracingStateMachine_StateId_ROTATEAROUNDEDGESTATE = 31,
+    tracingStateMachine_StateId_UPDVALSONFAILSTATE = 32
 } tracingStateMachine_StateId;
 
 enum
 {
-    tracingStateMachine_StateIdCount = 34
+    tracingStateMachine_StateIdCount = 33
 };
 
 

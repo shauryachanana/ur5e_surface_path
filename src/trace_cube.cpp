@@ -841,46 +841,7 @@ int main(int argc, char** argv)
     // ABORT IF NO INITIAL TRIANGLE WAS REACHABLE
     // ============================================================
 
-    if(
-        initialTriangle !=
-            AttemptToReach::TRIANGLE_REACHED
-    )
-    {
-        RCLCPP_ERROR(
-            logger,
-            "There are no reachable initial triangles. Aborting."
-        );
-
-
-        gripper_group_interface.reset();
-
-        spinner->cancel();
-
-        if(spinner_thread.joinable())
-        {
-            spinner_thread.join();
-        }
-
-        tcp_marker_timer.reset();
-        marker_pub.reset();
-
-        tf_listener.reset();
-        tf_buffer.reset();
-
-        spinner->remove_node(node);
-        node.reset();
-
-        spinner.reset();
-
-        if(rclcpp::ok())
-        {
-            rclcpp::shutdown();
-        }
-
-        return 1;
-    }
-
-
+//ggg
     // ============================================================
     // PLANNING PHASE
     //
@@ -934,141 +895,93 @@ int main(int argc, char** argv)
     tracingStateMachine_ctor(&sm);    // must be called first
     tracingStateMachine_start(&sm);   // enters the initial state
 
-    while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning){
+    while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning)
+    {
         tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
-        if(sm.state_id == tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE){
-            planningIterations++;
+ 
+        // one entry into this state == one old startOperation() call
+        if(sm.state_id != tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE){
+            continue;
         }
-        //TODO: C5 Order of main differs
+        planningIterations++;
+ 
+        // C3a: progress counter (old code, unchanged logic)
+        std::size_t currentTracedCount =
+            std::count(traced.begin(), traced.end(), true);
+ 
+        if(currentTracedCount > previousTracedCount){
+            iterationsWithoutProgress = 0;
+            previousTracedCount = currentTracedCount;
+        }else{
+            iterationsWithoutProgress++;
+        }
+        if(planningIterations % PROGRESS_LOG_INTERVAL == 0){
+            const double percent = 100.0 * (double)currentTracedCount
+                                         / (double)vectorOfTriangles.size();
+            const double elapsedSeconds = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - planningStart).count();
+ 
+            RCLCPP_WARN(logger,
+                "PLANNING: iteration=%zu | traced=%zu/%zu (%.2f%%) | "
+                "current triangle=%d | pathHistory=%zu | "
+                "execution waypoints=%zu | no-progress=%zu | elapsed=%.1f s",
+                planningIterations, currentTracedCount, vectorOfTriangles.size(), percent,
+                sm.vars.currentTriangle ? sm.vars.currentTriangle->myIndex : -1,
+                pathHistory.size(), stackOfReachableWaypoints.size(),
+                iterationsWithoutProgress, elapsedSeconds);
+        }
+ 
+        // C3c: endless retry / backtracking guard
+        if(iterationsWithoutProgress > MAX_NO_PROGRESS){
+            RCLCPP_ERROR(logger,
+                "Planning stopped: no new triangle was traced for %zu consecutive "
+                "iterations. This strongly suggests repeated backtracking or "
+                "retry behaviour.", iterationsWithoutProgress);
+            break;
+        }
+ 
+        // C3d: the old "invalid index returned by startOperation()" check is
+        //      NOT needed anymore (the machine works with pointers).
+    }
+
+    if(sm.vars.diedAtTheBeginning)
+    {
+        RCLCPP_ERROR(
+            logger,
+            "There are no reachable initial triangles. Aborting."
+        );
+ 
+        gripper_group_interface.reset();
+ 
+        spinner->cancel();
+ 
+        if(spinner_thread.joinable())
+        {
+            spinner_thread.join();
+        }
+ 
+        tcp_marker_timer.reset();
+        marker_pub.reset();
+ 
+        tf_listener.reset();
+        tf_buffer.reset();
+ 
+        spinner->remove_node(node);
+        node.reset();
+ 
+        spinner.reset();
+ 
+        if(rclcpp::ok())
+        {
+            rclcpp::shutdown();
+        }
+ 
+        return 1;
     }
 
     while(stackOfReachableWaypoints.size() > lastUsefulWaypointCount){
         stackOfReachableWaypoints.pop();
     }
-
-    while(
-        rclcpp::ok()
-    )
-    {
-        planningIterations++;
-
-
-        // --------------------------------------------------------
-        // Measure real planning progress.
-        // --------------------------------------------------------
-
-        std::size_t currentTracedCount =
-            std::count(
-                traced.begin(),
-                traced.end(),
-                true
-            );
-
-
-        if(currentTracedCount > previousTracedCount)
-        {
-            // At least one new surface triangle was reached.
-            iterationsWithoutProgress = 0;
-            previousTracedCount = currentTracedCount;
-        }
-        else
-        {
-            // This iteration only retried or backtracked.
-            iterationsWithoutProgress++;
-        }
-
-
-        // --------------------------------------------------------
-        // Print one useful progress message every 100 iterations.
-        // --------------------------------------------------------
-
-        if(
-            planningIterations %
-                PROGRESS_LOG_INTERVAL ==
-            0
-        )
-        {
-            const double percent =
-                100.0 *
-                static_cast<double>(
-                    currentTracedCount
-                ) /
-                static_cast<double>(
-                    vectorOfTriangles.size()
-                );
-
-            const double elapsedSeconds =
-                std::chrono::duration<double>(
-                    std::chrono::steady_clock::now() -
-                    planningStart
-                ).count();
-
-
-            RCLCPP_WARN(
-                logger,
-                "PLANNING: iteration=%zu | "
-                "traced=%zu/%zu (%.2f%%) | "
-                "current triangle=%d | "
-                "pathHistory=%zu | "
-                "execution waypoints=%zu | "
-                "no-progress=%zu | "
-                "elapsed=%.1f s",
-                planningIterations,
-                currentTracedCount,
-                vectorOfTriangles.size(),
-                percent,
-                nextOne,
-                pathHistory.size(),
-                stackOfReachableWaypoints.size(),
-                iterationsWithoutProgress,
-                elapsedSeconds
-            );
-        }
-
-
-        // --------------------------------------------------------
-        // Detect probable endless retry/backtracking behaviour.
-        // --------------------------------------------------------
-
-        if(
-            iterationsWithoutProgress >
-            MAX_NO_PROGRESS
-        )
-        {
-            RCLCPP_ERROR(
-                logger,
-                "Planning stopped: no new triangle was traced "
-                "for %zu consecutive iterations. "
-                "This strongly suggests repeated backtracking "
-                "or retry behaviour.",
-                iterationsWithoutProgress
-            );
-
-            break;
-        }
-
-
-        // --------------------------------------------------------
-        // Protect against a bad index returned by startOperation().
-        // --------------------------------------------------------
-
-        if(
-            nextOne < 0 ||
-            static_cast<std::size_t>(nextOne) >=
-                vectorOfTriangles.size()
-        )
-        {
-            RCLCPP_ERROR(
-                logger,
-                "Planning stopped because startOperation() "
-                "returned invalid triangle index %d",
-                nextOne
-            );
-
-            break;
-        }
-    }
-
 
     const std::size_t finalTracedCount =
         std::count(
