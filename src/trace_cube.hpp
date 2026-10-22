@@ -35,7 +35,7 @@
 #include <functional>
 #include <numeric>
 
-#define DEBUGGER
+// #define DEBUGGER
 #define TEMPORARY
 
 struct Triangle;
@@ -174,9 +174,11 @@ struct Triangle{
             myIndex = myIndex;
         }else{
             myNeighbours[arrayIndex] = value->second;
+            Triangle* other = vectorOfTriangles[value->second];
             for(int j = 0; j<3; j++){
-                if(vectorOfTriangles[value->second]->myNeighbours[j] == -1){
-                    vectorOfTriangles[value->second]->myNeighbours[j] = myIndex;
+                if(other->triangleEdges[j]->v1 == key.first &&
+                other->triangleEdges[j]->v2 == key.second){
+                    other->myNeighbours[j] = myIndex;
                     break;
                 }
             }

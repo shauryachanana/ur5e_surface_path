@@ -41,7 +41,9 @@ void init(){
 
 void goHome(){
     auto logger = rclcpp::get_logger("goGome");
+    #ifdef DEGUBBER
     RCLCPP_WARN(logger, "going home");
+    #endif
 
     std::vector<double> preferred_joints = {
         -90.0 * M_PI / 180.0,
@@ -86,10 +88,10 @@ void goHome(){
 bool getTCPpose(){
     auto logger = rclcpp::get_logger("currentTCP");
 
-    RCLCPP_WARN(
-        logger,
-        "getTCPpose"
-    );
+    // RCLCPP_WARN(
+    //     logger,
+    //     "getTCPpose"
+    // );
 
     try
     {
@@ -117,10 +119,10 @@ bool getTCPpose(){
         sm.vars.currentTCP[1] = transform.transform.translation.y;
         sm.vars.currentTCP[2] = transform.transform.translation.z;
 
-        RCLCPP_WARN(
-            logger,
-            "getTCPpose good"
-        );
+        // RCLCPP_WARN(
+        //     logger,
+        //     "getTCPpose good"
+        // );
 
         return true;
     }
@@ -139,11 +141,12 @@ bool getTCPpose(){
 //TODO: make orientation sm var
 void getTCPorientation(double* TCPorientation){
     auto logger = rclcpp::get_logger("getTCPorientation");
-
+    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "getTCPorient"
     );
+    #endif
 
     try
     {
@@ -171,11 +174,12 @@ void getTCPorientation(double* TCPorientation){
         TCPorientation[1] = transform.transform.rotation.y;
         TCPorientation[2] = transform.transform.rotation.z;
         TCPorientation[3] = transform.transform.rotation.w;
-
+        #ifdef DEBUGGER
         RCLCPP_WARN(
             logger,
             "getTCPorient success"
         );
+        #endif
     }
     catch (const tf2::TransformException &ex)
     {
@@ -190,10 +194,12 @@ void getTCPorientation(double* TCPorientation){
 bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std::vector<geometry_msgs::msg::Pose> &viaPoses){
     auto logger = rclcpp::get_logger("moveToPoint");
 
+    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "attempt to move"
     );
+    #endif
 
     moveit_msgs::msg::RobotTrajectory trajectory;
     //via poses (if any) are visited first, in the same Cartesian path
@@ -240,59 +246,99 @@ bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std
         }
         
         target_poses.pop_back();
+        #ifdef DEBUGGER
         RCLCPP_WARN(
             logger,
             "successful move"
         );
+        #endif
         return true;
     }else {
+        #ifdef DEBUGGER
         RCLCPP_WARN(
             logger,
             "failed move"
         );
+        #endif
         target_poses.pop_back();
         return false;
     }
 }
 
-geometry_msgs::msg::Pose poseFor(Triangle* triangle){
-    geometry_msgs::msg::Pose p;
-    p.position.x = - (triangle->centreOfTriangle[0] * 0.001f) - (triangle->normal_x * PEN_LENGTH);
-    p.position.y = - (triangle->centreOfTriangle[1] * 0.001f) + 0.65f - (triangle->normal_y * PEN_LENGTH);
-    p.position.z = (triangle->centreOfTriangle[2] * 0.001f) + 0.2f + (triangle->normal_z * PEN_LENGTH);
-
-    tf2::Vector3 normal(-triangle->normal_x, -triangle->normal_y, triangle->normal_z);
+static tf2::Quaternion orientationFor(Triangle* triangle)
+{
+    // KEEP YOUR ORIGINAL WORKING NORMAL SIGNS HERE
+    tf2::Vector3 normal(
+        -triangle->normal_x ,
+        -triangle->normal_y,
+         triangle->normal_z
+    );
     normal.normalize();
+
     tf2::Vector3 z_axis = -normal;
     z_axis.normalize();
+
     tf2::Vector3 world_up(0.0, 0.0, 1.0);
+
     if (std::abs(z_axis.dot(world_up)) > 0.99) {
         world_up = tf2::Vector3(1.0, 0.0, 0.0);
     }
+
     tf2::Vector3 x_axis = world_up.cross(z_axis);
     x_axis.normalize();
+
     tf2::Vector3 y_axis = z_axis.cross(x_axis);
     y_axis.normalize();
+
     tf2::Matrix3x3 rot(
         x_axis.x(), y_axis.x(), z_axis.x(),
         x_axis.y(), y_axis.y(), z_axis.y(),
-        x_axis.z(), y_axis.z(), z_axis.z());
+        x_axis.z(), y_axis.z(), z_axis.z()
+    );
+
     tf2::Quaternion q;
     rot.getRotation(q);
     q.normalize();
+
+    return q;
+}
+
+geometry_msgs::msg::Pose poseFor(Triangle* triangle){
+    geometry_msgs::msg::Pose p;
+
+    // Use your existing orientationFor function instead of duplicating math
+    tf2::Quaternion q = orientationFor(triangle);
+    q.normalize();
+
     p.orientation.x = q.x();
     p.orientation.y = q.y();
     p.orientation.z = q.z();
     p.orientation.w = q.w();
+
+    const tf2::Vector3 penTip(
+        -triangle->centreOfTriangle[0] * 0.001,
+        -triangle->centreOfTriangle[1] * 0.001 + 0.65f,
+        triangle->centreOfTriangle[2] * 0.001 + 0.2f
+    );
+
+    const tf2::Vector3 toolToTip =
+        tf2::Matrix3x3(q) * tf2::Vector3(0.0, 0.0, PEN_LENGTH);
+
+    p.position.x = penTip.x() - toolToTip.x();
+    p.position.y = penTip.y() - toolToTip.y();
+    p.position.z = penTip.z() - toolToTip.z();
+
     return p;
 }
 
 void targetPose(Triangle* triangle){
     auto logger = rclcpp::get_logger("targetPose");
+    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "targetPose"
     );
+    #endif
     sm.vars.triangleToMemorize = triangle;
     sm.vars.oldPose = sm.vars.target_pose;
     sm.vars.target_pose = poseFor(triangle);
@@ -300,23 +346,23 @@ void targetPose(Triangle* triangle){
 
 geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
     auto logger = rclcpp::get_logger("liftedPose");
-    RCLCPP_WARN(
-        logger,
-        "liftedPose"
-    );
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "liftedPose");
+    #endif
+
     geometry_msgs::msg::Pose p = poseFor(triangle);
-    p.position.x -= triangle->normal_x * JUMP_LIFT;
-    p.position.y -= triangle->normal_y * JUMP_LIFT;
-    p.position.z += triangle->normal_z * JUMP_LIFT;
+    tf2::Quaternion q = orientationFor(triangle);
+
+    tf2::Vector3 liftOffset = tf2::Matrix3x3(q) * tf2::Vector3(0.0, 0.0, JUMP_LIFT);
+
+    p.position.x += liftOffset.x();
+    p.position.y += liftOffset.y();
+    p.position.z += liftOffset.z();
+
     return p;
 }
 
 void edgeTipPose(){
-    auto logger = rclcpp::get_logger("edgeTipPose");
-    RCLCPP_WARN(
-        logger,
-        "edgeTipPose"
-    );
     sm.vars.edgePenTip.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f);
     sm.vars.edgePenTip.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f;
     sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f;
@@ -325,10 +371,12 @@ void edgeTipPose(){
 bool moveToPointWithPenRotation(){
     auto logger = rclcpp::get_logger("moveToPointWithPenRotation");
 
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "moveToPointWithPenRotation"
     );
+    #endif
 
     moveit_msgs::msg::RobotTrajectory trajectory;
     std::vector<geometry_msgs::msg::Pose> target_poses;
@@ -489,10 +537,12 @@ bool moveToPointWithPenRotation(){
 
 bool goBackOnHistory(){
     auto logger = rclcpp::get_logger("goBackOnHistory");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "goBackOnHistory"
     );
+    #endif
     if(pathHistory.empty()) return false;
     pathHistory.pop();                       // the waypoint we are standing on
     if(pathHistory.empty()) return false;
@@ -506,7 +556,8 @@ bool goBackOnHistory(){
     }
     sm.vars.target_pose = pathHistory.top().pose;
     sm.vars.triangleToMemorize = pathHistory.top().triangle;
-    if(!moveToPoint(movementDirection::BACKWARDS)) return false;  // TODO: what to do with this result now?
+
+    moveToPoint(movementDirection::BACKWARDS);
 
     sm.vars.currentTriangle = sm.vars.triangleToMemorize;
     sm.vars.iterator = 0;
@@ -515,10 +566,12 @@ bool goBackOnHistory(){
 
 void markAttemptFailed(){
     auto logger = rclcpp::get_logger("markAttemptFailed");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "markAttemptFailed"
     );
+    #endif
     for(std::size_t i = 0; i < sm.vars.previousTriangle->myNeighbours.size(); i++){
         if(sm.vars.previousTriangle->myNeighbours[i] == sm.vars.currentTriangle->myIndex){
             sm.vars.previousTriangle->neighbourFailed[i] = true;
@@ -527,27 +580,49 @@ void markAttemptFailed(){
     sm.vars.currentTriangle->unreachableCounter++;
 }
 
-void edgePoseWithOldOrient(){
+void edgePoseWithOldOrient()
+{
     auto logger = rclcpp::get_logger("edgePoseWithOldOrient");
+    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "edgePoseWithOldOrient"
     );
-    //use the orientation of the previous triangle to avoid collisions
-    sm.vars.target_pose.orientation = poseFor(sm.vars.previousTriangle).orientation;
+    #endif
 
-    //keep orientation, update position
-    sm.vars.target_pose.position.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f) - (sm.vars.previousTriangle->normal_x * PEN_LENGTH);
-    sm.vars.target_pose.position.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f - (sm.vars.previousTriangle->normal_y * PEN_LENGTH);
-    sm.vars.target_pose.position.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f + (sm.vars.previousTriangle->normal_z * PEN_LENGTH);
+    tf2::Quaternion q = orientationFor(sm.vars.previousTriangle);
+
+    sm.vars.target_pose.orientation.x = q.x();
+    sm.vars.target_pose.orientation.y = q.y();
+    sm.vars.target_pose.orientation.z = q.z();
+    sm.vars.target_pose.orientation.w = q.w();
+
+    edgeTipPose();
+
+    const tf2::Vector3 toolToTip =
+        tf2::Matrix3x3(q) *
+        tf2::Vector3(0.0, 0.0, PEN_LENGTH);
+
+    sm.vars.target_pose.position.x =
+        sm.vars.edgePenTip.x - toolToTip.x();
+
+    sm.vars.target_pose.position.y =
+        sm.vars.edgePenTip.y - toolToTip.y();
+
+    sm.vars.target_pose.position.z =
+        sm.vars.edgePenTip.z - toolToTip.z();
 }
 
 void attemptToReachNextClosest(){
+    if(sm.vars.initialTriangle == AttemptToReach::TRIANGLE_REACHED) return;
+
     auto logger = rclcpp::get_logger("attemptToReachNextClosest");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "attemptToReachNextClosest"
     );
+    #endif
     sm.vars.iterator = 0;
     while(chosenVector < 3){
         switch (chosenVector){
@@ -575,10 +650,12 @@ void attemptToReachNextClosest(){
 
 void triangleWithLeastNeighbours(){
     auto logger = rclcpp::get_logger("triangleWithLeastNeighbours");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "triangleWithLeastNeighbours"
     );
+    #endif
 
     sm.vars.sortedNeighbours.clear();
     sm.vars.sortedEdges.clear();
@@ -628,10 +705,12 @@ void triangleWithLeastNeighbours(){
 
 void rememberBranchPoint(){
     auto logger = rclcpp::get_logger("rememberBranchPoint");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "rememberBranchPoint"
     );
+    #endif
     if(sm.vars.previousTriangle->getValidNeighbours() == 0)
         return;
 
@@ -641,10 +720,12 @@ void rememberBranchPoint(){
 
 void getBranchCandidates(){
     auto logger = rclcpp::get_logger("getBranchCandidates");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "getBranchCandidates"
     );
+    #endif
     sm.vars.candidates.clear();
 
     // pathHistory already contains the surface route that reached the dead end
@@ -696,10 +777,12 @@ void getBranchCandidates(){
 
 bool planOMPLPose(){
     auto logger = rclcpp::get_logger("planOMPLPose");
+        #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "planOMPLPose"
     );
+    #endif
     gripper_group_interface->setPoseTarget(sm.vars.target_pose);
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;

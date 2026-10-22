@@ -51,7 +51,7 @@ void triangleExtraction(){
 
         triangle->centreOfTriangle[0] = (triangle->x[0] + triangle->x[1] + triangle->x[2]) / 3.0f;
         triangle->centreOfTriangle[1] = (triangle->y[0] + triangle->y[1] + triangle->y[2]) / 3.0f;
-        triangle->centreOfTriangle[2] = (triangle->z[0] + triangle->z[1] + triangle->z[2]) / 3.0f; 
+        triangle->centreOfTriangle[2] = (triangle->z[0] + triangle->z[1] + triangle->z[2]) / 3.0f;
 
         triangle->myIndex = i;
 
@@ -93,19 +93,19 @@ void triangleExtraction(){
 void getClosestTriangle(){
     int closestTriangle = -1;
     float minDist = 100000;
-    for(unsigned int i = 0; i < vectorOfTriangles.size(); i++){
-        float distanceToTriangle = distanceToTCP(vectorOfTriangles[i]);
+    for(unsigned int i = 0; i < sm.vars.vectorOfDesiredTriangles.size(); i++){
+        float distanceToTriangle = distanceToTCP(sm.vars.vectorOfDesiredTriangles[i]);
         if(distanceToTriangle < minDist){
             minDist = distanceToTriangle;
             closestTriangle = i;
         }else if(distanceToTriangle == minDist){
-            if(vectorOfTriangles[i]->centreOfTriangle[2] < vectorOfTriangles[closestTriangle]->centreOfTriangle[2]){
+            if(sm.vars.vectorOfDesiredTriangles[i]->centreOfTriangle[2] < sm.vars.vectorOfDesiredTriangles[closestTriangle]->centreOfTriangle[2]){
                 closestTriangle = i;
             }
         }
     }
     sm.vars.closestIdx = closestTriangle;
-    sm.vars.currentTriangle = vectorOfTriangles[sm.vars.closestIdx];
+    sm.vars.currentTriangle = sm.vars.vectorOfDesiredTriangles[sm.vars.closestIdx];
     return;
 }
 

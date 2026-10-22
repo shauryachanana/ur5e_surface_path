@@ -117,7 +117,6 @@ double triangleAreaM2(const Triangle& t)
 
 CoverageResult analyseCoverage(
     const std::vector<geometry_msgs::msg::Point>& trace_points,
-    const std::vector<Triangle*>& triangles,
     pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree,
     double coverage_radius_m,
     double interpolation_step_m)
@@ -125,11 +124,11 @@ CoverageResult analyseCoverage(
     CoverageResult result;
 
     result.covered.resize(
-        triangles.size(),
+        vectorOfTriangles.size(),
         false
     );
 
-    if(trace_points.empty() || triangles.empty())
+    if(trace_points.empty() || vectorOfTriangles.empty())
     {
         return result;
     }
@@ -304,12 +303,12 @@ CoverageResult analyseCoverage(
     // ============================================================
 
     for(std::size_t i = 0;
-        i < triangles.size();
+        i < vectorOfTriangles.size();
         ++i)
     {
         double area =
             triangleAreaM2(
-                *triangles[i]
+                *vectorOfTriangles[i]
             );
 
         result.total_area_m2 += area;
@@ -328,7 +327,7 @@ CoverageResult analyseCoverage(
             result.covered_triangles
         ) /
         static_cast<double>(
-            triangles.size()
+            vectorOfTriangles.size()
         );
 
 
@@ -673,6 +672,14 @@ int main(int argc, char** argv)
 
     RCLCPP_WARN(logger, "triangleExtraction done");
 
+    // for(auto* t : vectorOfTriangles)
+    // RCLCPP_WARN(logger, "NEIGH %d: nb=(%d,%d,%d) edges=(%d-%d, %d-%d, %d-%d)",
+    //     t->myIndex,
+    //     t->myNeighbours[0], t->myNeighbours[1], t->myNeighbours[2],
+    //     t->triangleEdges[0]->v1, t->triangleEdges[0]->v2,
+    //     t->triangleEdges[1]->v1, t->triangleEdges[1]->v2,
+    //     t->triangleEdges[2]->v1, t->triangleEdges[2]->v2);
+
     if(vectorOfTriangles.empty())
     {
         RCLCPP_ERROR(
@@ -729,8 +736,7 @@ int main(int argc, char** argv)
     );
 
 
-    for(const auto& triangle :
-        vectorOfTriangles)
+    for(const auto& triangle : vectorOfTriangles)
     {
         pcl::PointXYZ p;
 
@@ -764,11 +770,12 @@ int main(int argc, char** argv)
                 0.001f
             )
             +
+            0.2f                       // <-- was missing, same offset as poseFor()
+            +
             (
                 triangle->normal_z *
                 0.05f
             );
-
 
         performance_cloud->push_back(
             p
@@ -904,10 +911,12 @@ int main(int argc, char** argv)
 
     while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning)
     {
+        #ifdef DEBUGGER
         RCLCPP_WARN(
             logger,
             "dispatch"
         );
+        #endif
         
         tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
  
@@ -1078,14 +1087,19 @@ int main(int argc, char** argv)
             // plannedPath is vector<Triangle>, so copy the pointee
             plannedPath.push_back(*wp.triangle);
         }
+    }
 
 
-        #ifdef DEBUGGER
-        RCLCPP_WARN(
-            logger,
-            "added waypoint"
-        );
-        #endif
+    std::size_t k = 0;
+    for(const auto& wp : orderedWaypoints)
+    {
+        if(wp.triangle != nullptr) plannedPath.push_back(*wp.triangle);
+
+        // #ifdef DEBUGGER
+        RCLCPP_WARN(logger,
+            "wp pose = (%.3f, %.3f, %.3f)",
+            wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
+        // #endif
     }
 
 
@@ -1102,6 +1116,28 @@ int main(int argc, char** argv)
     {
         if(vectorOfTriangles[i]->traced)
         {
+            RCLCPP_WARN(logger, "TRACED %d %.1f %.1f %.1f", 
+                vectorOfTriangles[i]->myIndex,
+                -vectorOfTriangles[i]->centreOfTriangle[0]* 0.001f,
+                -vectorOfTriangles[i]->centreOfTriangle[1]* 0.001f + 0.65f,
+                vectorOfTriangles[i]->centreOfTriangle[2]* 0.001f + 0.2f
+            );
+            RCLCPP_WARN(
+                logger,
+                "edge1 %.3f %.3f %.3f edge2 %.3f %.3f %.3f edge3 %.3f %.3f %.3f",
+                -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[2]* 0.001f + 0.2f,
+
+                -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[2]* 0.001f + 0.2f,
+
+                -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[2]* 0.001f + 0.2f
+            );
+
             tracedf++;
         }
     }
@@ -1280,7 +1316,6 @@ int main(int argc, char** argv)
     CoverageResult coverage =
         analyseCoverage(
             trace_points,
-            vectorOfTriangles,
             performance_kdtree,
             COVERAGE_RADIUS_M,
             INTERPOLATION_STEP_M
