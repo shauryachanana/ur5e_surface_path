@@ -36,7 +36,7 @@ void init(){
     //from 0 to 1
     gripper_group_interface->setMaxVelocityScalingFactor(1.0);
     //0 to 1, 0 for const velocity 
-    gripper_group_interface->setMaxAccelerationScalingFactor(1.0);
+    gripper_group_interface->setMaxAccelerationScalingFactor(0.4);
 }
 
 void goHome(){
@@ -580,37 +580,34 @@ void markAttemptFailed(){
     sm.vars.currentTriangle->unreachableCounter++;
 }
 
-void edgePoseWithOldOrient()
-{
+void edgePoseWithOldOrient(){
     auto logger = rclcpp::get_logger("edgePoseWithOldOrient");
-    #ifdef DEBUGGER
     RCLCPP_WARN(
         logger,
         "edgePoseWithOldOrient"
     );
-    #endif
-
+    
+    // Get orientation of the previous triangle
     tf2::Quaternion q = orientationFor(sm.vars.previousTriangle);
-
     sm.vars.target_pose.orientation.x = q.x();
     sm.vars.target_pose.orientation.y = q.y();
     sm.vars.target_pose.orientation.z = q.z();
     sm.vars.target_pose.orientation.w = q.w();
 
-    edgeTipPose();
+    // Calculate edge pen tip in base_link coordinates
+    const tf2::Vector3 edgeTip(
+        - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f),
+        - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f,
+          (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f
+    );
 
+    // Properly rotate the pen length offset using the orientation matrix
     const tf2::Vector3 toolToTip =
-        tf2::Matrix3x3(q) *
-        tf2::Vector3(0.0, 0.0, PEN_LENGTH);
+        tf2::Matrix3x3(q) * tf2::Vector3(0.0, 0.0, PEN_LENGTH);
 
-    sm.vars.target_pose.position.x =
-        sm.vars.edgePenTip.x - toolToTip.x();
-
-    sm.vars.target_pose.position.y =
-        sm.vars.edgePenTip.y - toolToTip.y();
-
-    sm.vars.target_pose.position.z =
-        sm.vars.edgePenTip.z - toolToTip.z();
+    sm.vars.target_pose.position.x = edgeTip.x() - toolToTip.x();
+    sm.vars.target_pose.position.y = edgeTip.y() - toolToTip.y();
+    sm.vars.target_pose.position.z = edgeTip.z() - toolToTip.z();
 }
 
 void attemptToReachNextClosest(){

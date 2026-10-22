@@ -1089,8 +1089,6 @@ int main(int argc, char** argv)
         }
     }
 
-
-    std::size_t k = 0;
     for(const auto& wp : orderedWaypoints)
     {
         if(wp.triangle != nullptr) plannedPath.push_back(*wp.triangle);
