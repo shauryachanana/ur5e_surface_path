@@ -1592,11 +1592,12 @@ static void LEASTNEIGHBOURSSEARCHSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE;
     
     // leastNeighboursSearchState behavior
-    // uml: enter / { previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();} }
+    // uml: enter / { previousTriangle = currentTriangle;\niterator = 0;\niterationsBeforeCancel++;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();} }
     {
-        // Step 1: execute action `previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}`
+        // Step 1: execute action `previousTriangle = currentTriangle;\niterator = 0;\niterationsBeforeCancel++;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}`
         sm->vars.previousTriangle = sm->vars.currentTriangle;
         sm->vars.iterator = 0;
+        sm->vars.iterationsBeforeCancel++;
         if(pathHistory.empty() && stackOfReachableWaypoints.empty()){
                 branchPoints.clear();}
     } // end of behavior for leastNeighboursSearchState

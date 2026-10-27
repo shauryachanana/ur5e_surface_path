@@ -770,8 +770,6 @@ int main(int argc, char** argv)
                 0.001f
             )
             +
-            0.2f                       // <-- was missing, same offset as poseFor()
-            +
             (
                 triangle->normal_z *
                 0.05f
@@ -909,11 +907,13 @@ int main(int argc, char** argv)
         "statemachine started"
     );
 
+    int oldIterations = sm.vars.iterationsBeforeCancel;
+
     while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning)
     {
         #ifdef DEBUGGER
         RCLCPP_WARN(
-            logger,
+            logger,iteration
             "dispatch"
         );
         #endif
@@ -925,17 +925,16 @@ int main(int argc, char** argv)
             continue;
         }
         planningIterations++;
- 
-        // C3a: progress counter (old code, unchanged logic)
+
         std::size_t currentTracedCount =
             std::count(traced.begin(), traced.end(), true);
- 
+
         if(currentTracedCount > previousTracedCount){
             iterationsWithoutProgress = 0;
             previousTracedCount = currentTracedCount;
         }else{
-            iterationsWithoutProgress++;
-        }
+                iterationsWithoutProgress++;
+            }
         if(planningIterations % PROGRESS_LOG_INTERVAL == 0){
             const double percent = 100.0 * (double)currentTracedCount
                                          / (double)vectorOfTriangles.size();
@@ -952,7 +951,7 @@ int main(int argc, char** argv)
                 iterationsWithoutProgress, elapsedSeconds);
         }
  
-        // C3c: endless retry / backtracking guard
+        // endless retry / backtracking guard
         if(iterationsWithoutProgress > MAX_NO_PROGRESS){
             RCLCPP_ERROR(logger,
                 "Planning stopped: no new triangle was traced for %zu consecutive "
@@ -960,10 +959,9 @@ int main(int argc, char** argv)
                 "retry behaviour.", iterationsWithoutProgress);
             break;
         }
- 
-        // C3d: the old "invalid index returned by startOperation()" check is
-        //      NOT needed anymore (the machine works with pointers).
     }
+
+    sm.vars.currentState.reset(); 
 
     if(sm.vars.diedAtTheBeginning)
     {
@@ -1089,18 +1087,6 @@ int main(int argc, char** argv)
         }
     }
 
-    for(const auto& wp : orderedWaypoints)
-    {
-        if(wp.triangle != nullptr) plannedPath.push_back(*wp.triangle);
-
-        // #ifdef DEBUGGER
-        RCLCPP_WARN(logger,
-            "wp pose = (%.3f, %.3f, %.3f)",
-            wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
-        // #endif
-    }
-
-
     // ============================================================
     // PLANNED COVERAGE
     // ============================================================
@@ -1118,22 +1104,22 @@ int main(int argc, char** argv)
                 vectorOfTriangles[i]->myIndex,
                 -vectorOfTriangles[i]->centreOfTriangle[0]* 0.001f,
                 -vectorOfTriangles[i]->centreOfTriangle[1]* 0.001f + 0.65f,
-                vectorOfTriangles[i]->centreOfTriangle[2]* 0.001f + 0.2f
+                vectorOfTriangles[i]->centreOfTriangle[2]* 0.001f
             );
             RCLCPP_WARN(
                 logger,
                 "edge1 %.3f %.3f %.3f edge2 %.3f %.3f %.3f edge3 %.3f %.3f %.3f",
                 -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[0]* 0.001f,
                 -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[1]* 0.001f +  0.65f,
-                vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[2]* 0.001f + 0.2f,
+                vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[2]* 0.001f,
 
                 -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[0]* 0.001f,
                 -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[1]* 0.001f +  0.65f,
-                vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[2]* 0.001f + 0.2f,
+                vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[2]* 0.001f,
 
                 -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[0]* 0.001f,
                 -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[1]* 0.001f +  0.65f,
-                vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[2]* 0.001f + 0.2f
+                vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[2]* 0.001f
             );
 
             tracedf++;

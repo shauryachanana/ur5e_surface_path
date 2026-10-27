@@ -318,7 +318,7 @@ geometry_msgs::msg::Pose poseFor(Triangle* triangle){
     const tf2::Vector3 penTip(
         -triangle->centreOfTriangle[0] * 0.001,
         -triangle->centreOfTriangle[1] * 0.001 + 0.65f,
-        triangle->centreOfTriangle[2] * 0.001 + 0.2f
+        triangle->centreOfTriangle[2] * 0.001
     );
 
     const tf2::Vector3 toolToTip =
@@ -355,9 +355,9 @@ geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
 
     tf2::Vector3 liftOffset = tf2::Matrix3x3(q) * tf2::Vector3(0.0, 0.0, JUMP_LIFT);
 
-    p.position.x += liftOffset.x();
-    p.position.y += liftOffset.y();
-    p.position.z += liftOffset.z();
+    p.position.x -= liftOffset.x();
+    p.position.y -= liftOffset.y();
+    p.position.z -= liftOffset.z();
 
     return p;
 }
@@ -365,7 +365,7 @@ geometry_msgs::msg::Pose liftedPose(Triangle* triangle){
 void edgeTipPose(){
     sm.vars.edgePenTip.x = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f);
     sm.vars.edgePenTip.y = - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f;
-    sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f;
+    sm.vars.edgePenTip.z = (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f);
 }
 
 bool moveToPointWithPenRotation(){
@@ -520,8 +520,9 @@ bool moveToPointWithPenRotation(){
         RCLCPP_ERROR(logger, "pen rotation at edge planned successfully");
         return true;
     }
-
-    RCLCPP_ERROR(logger, "pen rotation at edge failed, fraction=%f", fraction);
+    moveit_msgs::msg::RobotTrajectory t2;
+    const double f2 = gripper_group_interface->computeCartesianPath(target_poses, 0.01, t2, false);
+    RCLCPP_ERROR(logger, "diag: same path WITHOUT collision check: fraction=%f", f2);
 
     // moveToPoint() already added the edge waypoint before this rotation
     // was attempted. The rotation is part of that same waypoint, so if the
@@ -598,7 +599,7 @@ void edgePoseWithOldOrient(){
     const tf2::Vector3 edgeTip(
         - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[0] * 0.001f),
         - (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[1] * 0.001f) + 0.65f,
-          (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f) + 0.2f
+          (sm.vars.sortedEdges[sm.vars.iterator]->centreOfEdge[2] * 0.001f)
     );
 
     // Properly rotate the pen length offset using the orientation matrix
@@ -845,6 +846,9 @@ bool confirmPathExecution(float coveragePercent){
     return (!response.empty() && (response[0] == 'Y' || response[0] == 'y'));
 }
 
+// ---- DIAGNOSTIC SWITCH: uncomment to run waypoint-by-waypoint ----
+// #define EXECUTE_BY_WAYPOINTS
+
 bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
 {
     auto logger =
@@ -859,6 +863,127 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
 
         return false;
     }
+
+    #ifdef EXECUTE_BY_WAYPOINTS
+    {
+    RCLCPP_WARN(logger, "=== DIAGNOSTIC: executing %zu waypoints one by one ===",
+                orderedWaypoints.size());
+    bool allOk = true;
+    const double jointSpeed = 0.5;   // rad/s, slow on purpose
+
+    for(std::size_t i = 0; i < orderedWaypoints.size(); ++i)
+    {
+        const auto &wp = orderedWaypoints[i];
+
+        // straight line from where the robot REALLY is to this pose
+        gripper_group_interface->setStartStateToCurrentState();
+
+        moveit_msgs::msg::RobotTrajectory traj = wp.trajectory;   // as planned, all types
+        const double fraction = 1.0;
+        // moveit_msgs::msg::RobotTrajectory traj;
+        // double fraction;
+        // if(wp.typeOfWaypoint == waypointType::EDGE){
+        //     traj = wp.trajectory;        // edge move + pen rotation, as planned
+        //     fraction = 1.0;
+        // }else{
+        //     std::vector<geometry_msgs::msg::Pose> single{wp.pose};
+        //     fraction = gripper_group_interface->computeCartesianPath(single, 0.005, traj, true);
+        // }
+
+        // re-time the points (Cartesian output has no usable timestamps)
+        auto &pts = traj.joint_trajectory.points;
+        double t = 0.0;
+        for(std::size_t k = 0; k < pts.size(); ++k){
+            if(k > 0){
+                double maxDelta = 0.0;
+                for(std::size_t j = 0; j < pts[k].positions.size(); ++j)
+                    maxDelta = std::max(maxDelta,
+                        std::abs(pts[k].positions[j] - pts[k-1].positions[j]));
+                t += std::max(0.001, maxDelta / jointSpeed);
+            }
+            pts[k].time_from_start.sec     = static_cast<int32_t>(t);
+            pts[k].time_from_start.nanosec = static_cast<uint32_t>((t - static_cast<int32_t>(t)) * 1e9);
+            pts[k].velocities.clear();
+            pts[k].accelerations.clear();
+        }
+
+        std::string status = "SKIPPED(fraction<0.9)";
+        if(fraction >= 0.9){
+            if(pts.size() > 1){
+                moveit::planning_interface::MoveGroupInterface::Plan plan;
+                plan.trajectory = traj;
+                status = (gripper_group_interface->execute(plan) ==
+                            moveit::core::MoveItErrorCode::SUCCESS) ? "OK" : "EXEC_FAIL";
+            } else {
+                status = "ALREADY_THERE";
+            }
+        }
+        if(status != "OK" && status != "ALREADY_THERE") allOk = false;
+
+        // where did the robot really end up?
+        rclcpp::sleep_for(std::chrono::milliseconds(300));
+        geometry_msgs::msg::TransformStamped tf;
+        try{
+            tf = tf_buffer->lookupTransform("base_link", "tool0", tf2::TimePointZero);
+        }catch(const tf2::TransformException &e){
+            RCLCPP_ERROR(logger, "WP %zu: TF failed: %s", i, e.what());
+            allOk = false;
+            continue;
+        }
+
+        tf2::Quaternion qT(wp.pose.orientation.x, wp.pose.orientation.y,
+                            wp.pose.orientation.z, wp.pose.orientation.w);
+        tf2::Quaternion qA(tf.transform.rotation.x, tf.transform.rotation.y,
+                            tf.transform.rotation.z, tf.transform.rotation.w);
+        qT.normalize(); qA.normalize();
+        const tf2::Vector3 pT(wp.pose.position.x, wp.pose.position.y, wp.pose.position.z);
+        const tf2::Vector3 pA(tf.transform.translation.x, tf.transform.translation.y,
+                                tf.transform.translation.z);
+        const tf2::Vector3 tipT = pT + tf2::Matrix3x3(qT) * tf2::Vector3(0, 0, PEN_LENGTH);
+        const tf2::Vector3 tipA = pA + tf2::Matrix3x3(qA) * tf2::Vector3(0, 0, PEN_LENGTH);
+
+        RCLCPP_WARN(logger,
+            "WP %zu/%zu %s tri=%d | fraction=%.3f pts=%zu exec=%s\n"
+            "   tool0 target (m): %.4f %.4f %.4f | reached: %.4f %.4f %.4f | err %.2f mm, rot %.2f deg\n"
+            "   pen tip target (m): %.4f %.4f %.4f | reached: %.4f %.4f %.4f | tip err %.2f mm\n"
+            "   pen tip target in MESH frame (mm): %.1f %.1f %.1f",
+            i, orderedWaypoints.size(),
+            wp.typeOfWaypoint == waypointType::EDGE ? "EDGE" : "TRI ",
+            wp.triangle ? wp.triangle->myIndex : -1,
+            fraction, pts.size(), status.c_str(),
+            pT.x(), pT.y(), pT.z(), pA.x(), pA.y(), pA.z(),
+            (pA - pT).length() * 1000.0,
+            qT.angleShortestPath(qA) * 180.0 / M_PI,
+            tipT.x(), tipT.y(), tipT.z(), tipA.x(), tipA.y(), tipA.z(),
+            (tipA - tipT).length() * 1000.0,
+            -tipT.x() * 1000.0, -(tipT.y() - 0.65) * 1000.0, tipT.z() * 1000.0);
+
+        // ---- orientation details ----
+        double rT, pT_, yT, rA, pA_, yA;
+        tf2::Matrix3x3(qT).getRPY(rT, pT_, yT);
+        tf2::Matrix3x3(qA).getRPY(rA, pA_, yA);
+
+        const tf2::Vector3 penDirT = tf2::Matrix3x3(qT) * tf2::Vector3(0, 0, 1);
+        const tf2::Vector3 penDirA = tf2::Matrix3x3(qA) * tf2::Vector3(0, 0, 1);
+
+        RCLCPP_WARN(logger,
+            "   orient target quat (x y z w): %.4f %.4f %.4f %.4f | reached: %.4f %.4f %.4f %.4f\n"
+            "   orient target RPY (deg): %.1f %.1f %.1f | reached: %.1f %.1f %.1f\n"
+            "   pen direction target: (%.3f, %.3f, %.3f) | reached: (%.3f, %.3f, %.3f) | angle between %.2f deg",
+            qT.x(), qT.y(), qT.z(), qT.w(),
+            qA.x(), qA.y(), qA.z(), qA.w(),
+            rT * 180.0 / M_PI, pT_ * 180.0 / M_PI, yT * 180.0 / M_PI,
+            rA * 180.0 / M_PI, pA_ * 180.0 / M_PI, yA * 180.0 / M_PI,
+            penDirT.x(), penDirT.y(), penDirT.z(),
+            penDirA.x(), penDirA.y(), penDirA.z(),
+            penDirT.angle(penDirA) * 180.0 / M_PI);
+    }
+
+    RCLCPP_WARN(logger, "=== DIAGNOSTIC finished, all waypoints ok: %s ===",
+                allOk ? "YES" : "NO");
+    return allOk;
+    }
+#else
 
     /*
      * Instead of executing every stored trajectory separately,
@@ -881,8 +1006,6 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
      * must be shifted before appending it.
      */
     int64_t combinedEndTimeNs = 0;
-
-  
 
     /*
      * Helper function:
@@ -1351,6 +1474,7 @@ bool executePlannedPath(const std::vector<Waypoint> &orderedWaypoints)
     );
 
     return true;
+#endif
 }
 
 void restoreVirtualStartState(){

@@ -253,7 +253,7 @@ leastNeighboursSearchState
 
 leastNeighboursSearchState : leastNeighboursSearchState
 
-leastNeighboursSearchState : enter / #123; previousTriangle = currentTriangle#59;\niterator = 0#59;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty())#123;\n        branchPoints.clear()#59;#125; #125;
+leastNeighboursSearchState : enter / #123; previousTriangle = currentTriangle#59;\niterator = 0#59;\niterationsBeforeCancel++#59;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty())#123;\n        branchPoints.clear()#59;#125; #125;
 
 leastNeighboursSearchState : do / #123; triangleWithLeastNeighbours()#59; #125;
 
@@ -2393,10 +2393,10 @@ evaluateGuard = null;
         } // end of behavior for leastNeighboursSearchState
         
         // leastNeighboursSearchState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}"); }
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\niterationsBeforeCancel++;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}");`
-            this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\niterationsBeforeCancel++;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}");`
+            this.tracer?.log("⚡ FSM would execute action: " + "previousTriangle = currentTriangle;\niterator = 0;\niterationsBeforeCancel++;\nif(pathHistory.empty() && stackOfReachableWaypoints.empty()){\n        branchPoints.clear();}");
         } // end of behavior for leastNeighboursSearchState
     }
     

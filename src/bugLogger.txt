@@ -1,5 +1,1 @@
-half of waypoints are not beings traced perfectly. apperently when you use this merge trajectories
-it adds the radius next to waypoints to make it smoother. at least thats whats i understood,
-if you have different insight i would be greatful.
-for now my suggestion would be to simply use the waypoints in the for loop to iterate through stack
-of waypoints
+cnat find any major issues

@@ -91,6 +91,7 @@ typedef struct tracingStateMachine_Vars
     Triangle* triangleToMemorize;
     AttemptToReach initialTriangle;
     int iterator;
+    int iterationsBeforeCancel;
     int jumpIterator;
     volatile bool opSuccess;
     size_t size;

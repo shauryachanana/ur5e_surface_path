@@ -1,6 +1,6 @@
 <mxfile host="Electron" scale="1.2" border="0" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3" pages="3">
   <diagram name="design" id="ahwWs56YI2XBYRBzwlqw">
-    <mxGraphModel dx="1649" dy="1181" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1831" dy="1173" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -17,10 +17,10 @@
           <mxGeometry x="950" y="-170" width="540" height="40" as="geometry" />
         </mxCell>
         <mxCell id="2hSZiEXLfJuBt3OHh1vY-2" value="leastNeighboursSearchState" style="shape=swimlane;rotatable=0;align=center;verticalAlign=top;fontFamily=Lucida Console;startSize=30;fontSize=14;fontStyle=1;fontColor=#ffffff;fillColor=#1ba1e2;swimlaneFillColor=default;rounded=1;arcSize=15;absoluteArcSize=1;points=[[0,0,0,0,0],[0,0.13,0,0,0],[0,0.25,0,0,0],[0,0.38,0,0,0],[0,0.5,0,0,0],[0,0.63,0,0,0],[0,0.75,0,0,0],[0,0.88,0,0,0],[0,1,0,0,0],[0.13,0,0,0,0],[0.13,1,0,0,0],[0.25,0,0,0,0],[0.25,1,0,0,0],[0.38,0,0,0,0],[0.38,1,0,0,0],[0.5,0,0,0,0],[0.5,1,0,0,0],[0.63,0,0,0,0],[0.63,1,0,0,0],[0.75,0,0,0,0],[0.75,1,0,0,0],[0.88,0,0,0,0],[0.88,1,0,0,0],[1,0,0,0,0],[1,0.13,0,0,0],[1,0.25,0,0,0],[1,0.38,0,0,0],[1,0.5,0,0,0],[1,0.63,0,0,0],[1,0.75,0,0,0],[1,0.88,0,0,0],[1,1,0,0,0]];strokeColor=#006EAF;" parent="1" vertex="1">
-          <mxGeometry x="963.5" y="245" width="390" height="130" as="geometry" />
+          <mxGeometry x="963.5" y="230" width="390" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="2hSZiEXLfJuBt3OHh1vY-3" value="enter / { previousTriangle = currentTriangle;&#xa;iterator = 0;&#xa;if(pathHistory.empty() &amp;&amp; stackOfReachableWaypoints.empty()){&#xa;        branchPoints.clear();}}&#xa;do / triangleWithLeastNeighbours();&#xa;exit / " style="fontFamily=Lucida Console;align=left;verticalAlign=top;fillColor=none;gradientColor=none;strokeColor=none;rounded=0;spacingLeft=4;resizable=0;movable=0;deletable=0;rotatable=0;autosize=1;" parent="2hSZiEXLfJuBt3OHh1vY-2" vertex="1" connectable="0">
-          <mxGeometry y="30" width="350" height="100" as="geometry" />
+        <mxCell id="2hSZiEXLfJuBt3OHh1vY-3" value="enter / { previousTriangle = currentTriangle;&#xa;iterator = 0;&#xa;iterationsBeforeCancel++;&#xa;if(pathHistory.empty() &amp;&amp; stackOfReachableWaypoints.empty()){&#xa;        branchPoints.clear();}}&#xa;do / triangleWithLeastNeighbours();&#xa;exit / " style="fontFamily=Lucida Console;align=left;verticalAlign=top;fillColor=none;gradientColor=none;strokeColor=none;rounded=0;spacingLeft=4;resizable=0;movable=0;deletable=0;rotatable=0;autosize=1;" parent="2hSZiEXLfJuBt3OHh1vY-2" vertex="1" connectable="0">
+          <mxGeometry y="30" width="350" height="110" as="geometry" />
         </mxCell>
         <mxCell id="v7hGsE11ZgUkW6WrLjJR-8" value="attemptNextClosestState" style="shape=swimlane;rotatable=0;align=center;verticalAlign=top;fontFamily=Lucida Console;startSize=30;fontSize=14;fontStyle=1;fontColor=#ffffff;fillColor=#1ba1e2;swimlaneFillColor=default;rounded=1;arcSize=15;absoluteArcSize=1;points=[[0,0,0,0,0],[0,0.13,0,0,0],[0,0.25,0,0,0],[0,0.38,0,0,0],[0,0.5,0,0,0],[0,0.63,0,0,0],[0,0.75,0,0,0],[0,0.88,0,0,0],[0,1,0,0,0],[0.13,0,0,0,0],[0.13,1,0,0,0],[0.25,0,0,0,0],[0.25,1,0,0,0],[0.38,0,0,0,0],[0.38,1,0,0,0],[0.5,0,0,0,0],[0.5,1,0,0,0],[0.63,0,0,0,0],[0.63,1,0,0,0],[0.75,0,0,0,0],[0.75,1,0,0,0],[0.88,0,0,0,0],[0.88,1,0,0,0],[1,0,0,0,0],[1,0.13,0,0,0],[1,0.25,0,0,0],[1,0.38,0,0,0],[1,0.5,0,0,0],[1,0.63,0,0,0],[1,0.75,0,0,0],[1,0.88,0,0,0],[1,1,0,0,0]];strokeColor=#006EAF;" parent="1" vertex="1">
           <mxGeometry x="10" y="260" width="200" height="100" as="geometry" />
@@ -70,8 +70,8 @@
         <mxCell id="sp3nEeGU2mzKeOFec7Zv-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.38;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.38;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" parent="1" source="v7hGsE11ZgUkW6WrLjJR-8" target="2hSZiEXLfJuBt3OHh1vY-2" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="210" y="294" />
-              <mxPoint x="963" y="294" />
+              <mxPoint x="210" y="280" />
+              <mxPoint x="963" y="280" />
             </Array>
             <mxPoint x="610" y="294.20000000000005" as="targetPoint" />
           </mxGeometry>
@@ -317,7 +317,7 @@
         <mxCell id="_NpMDxiU3t6K9pj5lq2b-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.63;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" parent="1" source="2hSZiEXLfJuBt3OHh1vY-2" target="hYKRfS-nprEpkSOQWXRL-20" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="750" y="327" />
+              <mxPoint x="750" y="312" />
               <mxPoint x="750" y="445" />
             </Array>
           </mxGeometry>
@@ -332,7 +332,8 @@
             <mxPoint x="1485" y="1200" as="targetPoint" />
             <Array as="points">
               <mxPoint x="1550" y="1000" />
-              <mxPoint x="1550" y="342" />
+              <mxPoint x="1550" y="328" />
+              <mxPoint x="1353" y="328" />
             </Array>
             <mxPoint x="1490" y="870" as="sourcePoint" />
           </mxGeometry>
@@ -573,15 +574,15 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-6" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[!currentState] / {jumpIterator++;&amp;nbsp;&lt;/p&gt;&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;currentTriangle-&amp;gt;unreachableCounter++;}&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;" vertex="1" connectable="0" parent="zzUK0J_Bac_e8qvDU6A6-2">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-6" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[!currentState] / {jumpIterator++;&amp;nbsp;&lt;/p&gt;&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;currentTriangle-&amp;gt;unreachableCounter++;}&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;" parent="zzUK0J_Bac_e8qvDU6A6-2" vertex="1" connectable="0">
           <mxGeometry x="-0.6856" relative="1" as="geometry">
             <mxPoint x="23" y="10" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.7;exitY=0.9;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.19;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" edge="1" parent="T-mNI8dvCpU1A05kxO13-3" source="3U00F9i_EegEeXAeEsPf-2" target="gFNhsI1VSJGkDFh-oVS6-5">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.7;exitY=0.9;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.19;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" parent="T-mNI8dvCpU1A05kxO13-3" source="3U00F9i_EegEeXAeEsPf-2" target="gFNhsI1VSJGkDFh-oVS6-5" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-8" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[jumpIterator &amp;lt; candidateSize]&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="ofzZe0PDbbFsnFOVqLVb-7">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-8" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[jumpIterator &amp;lt; candidateSize]&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ofzZe0PDbbFsnFOVqLVb-7" vertex="1" connectable="0">
           <mxGeometry x="-0.1564" y="2" relative="1" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
@@ -600,12 +601,13 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2530" y="1145" />
-              <mxPoint x="2530" y="359" />
+              <mxPoint x="2530" y="344" />
+              <mxPoint x="1353" y="344" />
             </Array>
             <mxPoint x="2330" y="1160" as="sourcePoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-3" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;do / lastUsefulWaypointCount = stackOfReachableWaypoints.size();&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="zDEm_w6S3PCLt4Do_rS4-47">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-3" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;do / lastUsefulWaypointCount = stackOfReachableWaypoints.size();&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="zDEm_w6S3PCLt4Do_rS4-47" vertex="1" connectable="0">
           <mxGeometry x="0.0443" y="-1" relative="1" as="geometry">
             <mxPoint x="-5" y="2" as="offset" />
           </mxGeometry>
@@ -634,8 +636,8 @@
         <mxCell id="xA0rmr1OJDqEy3L_KQYt-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.94;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.38;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="xA0rmr1OJDqEy3L_KQYt-2" target="2hSZiEXLfJuBt3OHh1vY-2" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1540" y="294" />
-              <mxPoint x="1447" y="294" />
+              <mxPoint x="1540" y="280" />
+              <mxPoint x="1447" y="280" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -667,15 +669,15 @@
             <mxPoint x="1494.5" y="475" as="sourcePoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-2" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[else ] / {lastUsefulWaypointCount = stackOfReachableWaypoints.size();&amp;nbsp;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;jumpIterator = 0;}&lt;/span&gt;&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="xA0rmr1OJDqEy3L_KQYt-13">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-2" value="&lt;p class=&quot;p1&quot; style=&quot;margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; text-align: start; text-wrap-mode: wrap;&quot;&gt;[else ] / {lastUsefulWaypointCount = stackOfReachableWaypoints.size();&amp;nbsp;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;jumpIterator = 0;}&lt;/span&gt;&lt;/p&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="xA0rmr1OJDqEy3L_KQYt-13" vertex="1" connectable="0">
           <mxGeometry x="0.3319" y="3" relative="1" as="geometry">
             <mxPoint x="-118" y="-1" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.19;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.56;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" edge="1" parent="1" source="T-mNI8dvCpU1A05kxO13-5" target="xA0rmr1OJDqEy3L_KQYt-2">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.19;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.56;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="T-mNI8dvCpU1A05kxO13-5" target="xA0rmr1OJDqEy3L_KQYt-2" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="ofzZe0PDbbFsnFOVqLVb-5" value="else" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="ofzZe0PDbbFsnFOVqLVb-4">
+        <mxCell id="ofzZe0PDbbFsnFOVqLVb-5" value="else" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ofzZe0PDbbFsnFOVqLVb-4" vertex="1" connectable="0">
           <mxGeometry x="-0.3527" y="-2" relative="1" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
@@ -684,7 +686,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="e6KzhQqeHZ0kGev2914D" name="config">
-    <mxGraphModel dx="775" dy="757" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="2289" dy="1237" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -693,8 +695,8 @@
             <mxRectangle x="40" y="40" width="170" height="70" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="AQYHgrLb52N4u3SG62Hm-2" value="[RenderConfig]&#xa;FileTop = &quot;&quot;&quot;&#xa;    // Whatever you put in this `FileTop` section will end up &#xa;    // being printed at the top of every generated code file.&#xa;    &quot;&quot;&quot;&#xa;AutoExpandedVars = &quot;&quot;&quot;&#xa;    bool noReachableTrianglesLeft;&#xa;bool diedAtTheBeginning;&#xa;    Pose target_pose; &#xa;    Pose oldPose;&#xa;    Triangle* currentTriangle;&#xa;    Triangle* previousTriangle;&#xa;Triangle* triangleToMemorize;&#xa;    AttemptToReach initialTriangle;&#xa;    int iterator;&#xa;int jumpIterator;&#xa;volatile bool opSuccess;&#xa;    size_t size;&#xa;size_t candidateSize;&#xa;int closestIdx; &#xa;Triangle* jumpFrom;&#xa;State currentState;&#xa;    Tip edgePenTip;&#xa;    Vec3d currentTCP; &#xa;    BranchVec candidates;&#xa;    TriangleVec vectorOfDesiredTriangles; &#xa;AttemptToReach neighbourReachAttempt;&#xa;TriangleVec sortedNeighbours;&#xa;EdgeVec sortedEdges;&quot;&quot;&quot;&#xa;&#xa;[RenderConfig.C]&#xa;# CFileExtension = &quot;.inc&quot; # if you want to include sm in another file&#xa;CFileExtension = &quot;.cpp&quot;&#xa;HFileExtension = &quot;.hpp&quot;&#xa;HFileIncludes = &quot;&quot;&quot;&#xa; #include &quot;../trace_cube.hpp&quot;&#xa;&#xa;//=======NAMING UTILS========&#xa;using TriangleVec = std::vector&lt;Triangle*&gt;;&#xa;using EdgeVec = std::vector&lt;Edge*&gt;;&#xa;using BoolVec = std::vector&lt;bool&gt;;&#xa;using BranchVec = std::vector&lt;BranchCandidate&gt;;&#xa;using Pose = geometry_msgs::msg::Pose;&#xa;using Tip = geometry_msgs::msg::Point;&#xa;using Quaternion = tf2::Quaternion;&#xa;using std::size_t;&#xa;using Vec3d = double[3];&#xa;using State = moveit::core::RobotStatePtr;&#xa;//============================&#xa;&quot;&quot;&quot;&#xa;CFileIncludes = &quot;&quot;&quot;&#xa;    &quot;&quot;&quot;&#xa;# IncludeGuardLabel = &quot;{FILENAME}_H&quot;&#xa;&#xa;# More C settings are available. See docs.&#xa;&#xa;[SmRunnerSettings]&#xa;transpilerId = &quot;C99&quot;" style="fontFamily=Lucida Console;align=left;verticalAlign=top;fillColor=none;gradientColor=none;strokeColor=none;rounded=0;spacingLeft=4;resizable=0;movable=0;deletable=0;rotatable=0;autosize=1;" parent="AQYHgrLb52N4u3SG62Hm-1" vertex="1" connectable="0">
-          <mxGeometry y="30" width="350" height="850" as="geometry" />
+        <mxCell id="AQYHgrLb52N4u3SG62Hm-2" value="[RenderConfig]&#xa;FileTop = &quot;&quot;&quot;&#xa;    // Whatever you put in this `FileTop` section will end up &#xa;    // being printed at the top of every generated code file.&#xa;    &quot;&quot;&quot;&#xa;AutoExpandedVars = &quot;&quot;&quot;&#xa;    bool noReachableTrianglesLeft;&#xa;bool diedAtTheBeginning;&#xa;    Pose target_pose; &#xa;    Pose oldPose;&#xa;    Triangle* currentTriangle;&#xa;    Triangle* previousTriangle;&#xa;Triangle* triangleToMemorize;&#xa;    AttemptToReach initialTriangle;&#xa;    int iterator;&#xa;int iterationsBeforeCancel;&#xa;int jumpIterator;&#xa;volatile bool opSuccess;&#xa;    size_t size;&#xa;size_t candidateSize;&#xa;int closestIdx; &#xa;Triangle* jumpFrom;&#xa;State currentState;&#xa;    Tip edgePenTip;&#xa;    Vec3d currentTCP; &#xa;    BranchVec candidates;&#xa;    TriangleVec vectorOfDesiredTriangles; &#xa;AttemptToReach neighbourReachAttempt;&#xa;TriangleVec sortedNeighbours;&#xa;EdgeVec sortedEdges;&quot;&quot;&quot;&#xa;&#xa;[RenderConfig.C]&#xa;# CFileExtension = &quot;.inc&quot; # if you want to include sm in another file&#xa;CFileExtension = &quot;.cpp&quot;&#xa;HFileExtension = &quot;.hpp&quot;&#xa;HFileIncludes = &quot;&quot;&quot;&#xa; #include &quot;../trace_cube.hpp&quot;&#xa;&#xa;//=======NAMING UTILS========&#xa;using TriangleVec = std::vector&lt;Triangle*&gt;;&#xa;using EdgeVec = std::vector&lt;Edge*&gt;;&#xa;using BoolVec = std::vector&lt;bool&gt;;&#xa;using BranchVec = std::vector&lt;BranchCandidate&gt;;&#xa;using Pose = geometry_msgs::msg::Pose;&#xa;using Tip = geometry_msgs::msg::Point;&#xa;using Quaternion = tf2::Quaternion;&#xa;using std::size_t;&#xa;using Vec3d = double[3];&#xa;using State = moveit::core::RobotStatePtr;&#xa;//============================&#xa;&quot;&quot;&quot;&#xa;CFileIncludes = &quot;&quot;&quot;&#xa;    &quot;&quot;&quot;&#xa;# IncludeGuardLabel = &quot;{FILENAME}_H&quot;&#xa;&#xa;# More C settings are available. See docs.&#xa;&#xa;[SmRunnerSettings]&#xa;transpilerId = &quot;C99&quot;" style="fontFamily=Lucida Console;align=left;verticalAlign=top;fillColor=none;gradientColor=none;strokeColor=none;rounded=0;spacingLeft=4;resizable=0;movable=0;deletable=0;rotatable=0;autosize=1;" parent="AQYHgrLb52N4u3SG62Hm-1" vertex="1" connectable="0">
+          <mxGeometry y="30" width="350" height="860" as="geometry" />
         </mxCell>
         <mxCell id="Rtzr6oL3nyDmr5cCv5HC-1" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px;&quot;&gt;Feel free to delete the `$CONFIG : toml` node if you don&#39;t want it.&lt;/span&gt;&lt;br style=&quot;color: rgb(0, 0, 0); font-size: 12px;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px;&quot;&gt;Details here:&amp;nbsp;&lt;/span&gt;&lt;a style=&quot;font-size: 12px;&quot; href=&quot;https://github.com/StateSmith/StateSmith/issues/335&quot;&gt;https://github.com/StateSmith/StateSmith/issues/335&lt;/a&gt;" style="shape=note;strokeWidth=2;fontSize=14;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#2B2B00;align=left;spacingLeft=6;" parent="1" vertex="1">
           <mxGeometry x="40" y="40" width="490" height="50" as="geometry" />
