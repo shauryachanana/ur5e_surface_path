@@ -1,4 +1,4 @@
-#28/10 with max triangle size
+#28/10 with max triangle size implemented 
 #!/usr/bin/env python3
 """
 Point Cloud → Triangle Mesh → STL
@@ -701,7 +701,7 @@ def subdivide_large_triangles(mesh: o3d.geometry.TriangleMesh,
     - Normal orientation is averaged over a large area, reducing accuracy
       on curved surfaces
 
-    Default: 200 mm² (~20x20mm triangle). Tunable via --maxtri.
+    Default: 400 mm² (~20x20mm triangle). Tunable via --maxtri.
     Set --maxtri 0 to skip this step entirely.
 
     This runs AFTER BPA and hole filling so it never interferes with
@@ -800,7 +800,7 @@ def reconstruct(input_path: str,
                 camera: list = None,
                 holefill: str = 'none',
                 max_hole_perimeter: float = 50.0,
-                max_tri_area: float = 200.0,
+                max_tri_area: float = 400.0,
                 install: bool = False):
 
     print(f"\n[1/7] Loading: {input_path}")
@@ -904,7 +904,7 @@ def main():
                              'ECT safety parameter: large holes = missing scan data\n'
                              '= robot should not inspect that region.')
 
-    parser.add_argument('--maxtri', type=float, default=200.0,
+    parser.add_argument('--maxtri', type=float, default=400.0,
                         dest='max_tri_area',
                         help='Maximum triangle area in mm² (default: 200.0).\n'
                              'Triangles larger than this are subdivided at centroid.\n'
