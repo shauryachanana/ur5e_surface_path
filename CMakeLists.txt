@@ -37,14 +37,9 @@ ament_target_dependencies(reachability ${dependencies})
 
 
 
-install(TARGETS 
-  hello_moveit
-  trace_cube
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 install(
   TARGETS
+    hello_moveit
     trace_cube
     reachability
   DESTINATION lib/${PROJECT_NAME}
