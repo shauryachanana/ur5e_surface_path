@@ -18,6 +18,7 @@ find_package(geometric_shapes REQUIRED)
 
 add_executable(hello_moveit src/hello_moveit.cpp)
 add_executable(trace_cube src/trace_cube.cpp)
+add_executable(reachability src/reachability.cpp)
 
 set(dependencies
   rclcpp
@@ -32,6 +33,8 @@ set(dependencies
 )
 ament_target_dependencies(hello_moveit ${dependencies})
 ament_target_dependencies(trace_cube ${dependencies})
+ament_target_dependencies(reachability ${dependencies})
+
 
 
 install(TARGETS 
@@ -39,6 +42,15 @@ install(TARGETS
   trace_cube
   DESTINATION lib/${PROJECT_NAME}
 )
+
+install(
+  TARGETS
+    trace_cube
+    reachability
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
 install(PROGRAMS
   src/reconstruct_mesh.py
   DESTINATION lib/${PROJECT_NAME}
