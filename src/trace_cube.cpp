@@ -1,16 +1,39 @@
 #include "trace_cube.hpp"
 
-//global node
-std::shared_ptr<rclcpp::Node> node;
-std::unique_ptr<moveit::planning_interface::MoveGroupInterface> gripper_group_interface;
+#include <fstream>
+#include <vector>
+#include <math.h>
+#include <chrono>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Vector3.h>
+#include <geometric_shapes/shapes.h>
+#include <geometric_shapes/mesh_operations.h>
+#include <geometric_shapes/shape_operations.h>
 
 //load a file
 std::string mesh_path = "file://" + ament_index_cpp::get_package_share_directory("ur5e_surface_path") + "/meshes/50cmCube.stl";
 //now we have info on all the triangles
 shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
 
-extern std::stack<Waypoint> pathHistory;
-std::vector<bool> traced;
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
+#define DEBUGGER
+#define TEMPORARY
+
+struct Triangle{
+    int id;   // CHANGED: index in STL order, needed for visited.csv
+    float x0, y0, z0;
+    float x1, y1, z1;
+    float x2, y2, z2;
+    float centre_x, centre_y, centre_z;
+    float normal_x, normal_y, normal_z;
+};
+
+void calculateTriangleNormal(Triangle& triangle, shapes::Mesh* mesh, int index){
+    triangle.normal_x = mesh->triangle_normals[index*3 + 0];
+    triangle.normal_y = mesh->triangle_normals[index*3 + 1];
+    triangle.normal_z = mesh->triangle_normals[index*3 + 2];
+}
 
 int main(int argc, char** argv){
     rclcpp::init(argc, argv);
@@ -21,37 +44,94 @@ int main(int argc, char** argv){
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
 
-    gripper_group_interface = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
-        node, "ur_manipulator"
+    auto const logger = rclcpp::get_logger("trace_cube");
+
+    using moveit::planning_interface::MoveGroupInterface;
+
+    auto gripper_group_interface = MoveGroupInterface(node, "ur_manipulator");
+
+    gripper_group_interface.setPlanningPipelineId("ompl");
+    gripper_group_interface.setPlannerId("RRTConnectkConfigDefault");
+    gripper_group_interface.setPlanningTime(5.0);
+    gripper_group_interface.setMaxVelocityScalingFactor(1.0);
+    gripper_group_interface.setMaxAccelerationScalingFactor(0.0);
+
+    RCLCPP_INFO(logger, "Planning pipeline: %s", gripper_group_interface.getPlanningPipelineId().c_str());
+    RCLCPP_INFO(logger, "Planner ID: %s", gripper_group_interface.getPlannerId().c_str());
+    RCLCPP_INFO(logger, "Planning time: %.2f", gripper_group_interface.getPlanningTime());
+
+    std::vector<double> preferred_joints = {
+        -101.0 * M_PI / 180.0,
+        -115.0 * M_PI / 180.0,
+        -25.0 * M_PI / 180.0,
+        -205.0 * M_PI / 180.0,
+        -101.0 * M_PI / 180.0,
+        -180.0 * M_PI / 180.0
+    };
+
+    gripper_group_interface.setJointValueTarget(preferred_joints);
+
+    moveit::planning_interface::MoveGroupInterface::Plan home_plan;
+    geometry_msgs::msg::Pose target_pose;
+
+    auto ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
+
+    if (!ok) {
+        RCLCPP_ERROR(logger, "Phase 1 planning failed!");
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    gripper_group_interface.execute(home_plan);
+
+    std::vector<geometry_msgs::msg::Pose> target_poses;
+
+    /*------------PROCESS STL FILE------------*/
+
+    node->declare_parameter("mesh_filename", "bowl_surface.stl");
+    std::string mesh_filename = node->get_parameter("mesh_filename").as_string();
+    std::string mesh_path = "file://" +
+        ament_index_cpp::get_package_share_directory("ur5e_surface_path") +
+        "/meshes/" + mesh_filename;
+
+    shapes::Mesh* mesh = shapes::createMeshFromResource(
+        mesh_path
     );
-
-    init();
-
-    goHome();
-
-    auto logger = rclcpp::get_logger("main");
-    
-    /*===================FIND THE POINT TO START===================*/
 
     std::vector<Triangle> vectorOfTriangles;
 
-    triangleExtraction(vectorOfTriangles);
-    traced = std::vector<bool>(vectorOfTriangles.size(), false);
+    for(unsigned int i = 0; i< mesh->triangle_count; i++){
+        int firstVertexOfTriangle = mesh->triangles[i*3 + 0];
+        int secondVertexOfTriangle = mesh->triangles[i*3 + 1];
+        int thirdVertexOfTriangle = mesh->triangles[i*3 + 2];
 
-    #ifndef DEBUGGER
-    for(int i = 0; i < (int)vectorOfTriangles.size(); i++){
-        RCLCPP_WARN(logger, "neighbours of %d : %d, %d, %d", i, vectorOfTriangles[i].myNeighbours[0],vectorOfTriangles[i].myNeighbours[1],vectorOfTriangles[i].myNeighbours[2]);
+        Triangle triangle;
+        triangle.id = i;   // CHANGED
+
+        triangle.x0 = mesh->vertices[firstVertexOfTriangle * 3 + 0];
+        triangle.y0 = mesh->vertices[firstVertexOfTriangle * 3 + 1];
+        triangle.z0 = mesh->vertices[firstVertexOfTriangle * 3 + 2];
+
+        triangle.x1 = mesh->vertices[secondVertexOfTriangle * 3 + 0];
+        triangle.y1 = mesh->vertices[secondVertexOfTriangle * 3 + 1];
+        triangle.z1 = mesh->vertices[secondVertexOfTriangle * 3 + 2];
+
+        triangle.x2 = mesh->vertices[thirdVertexOfTriangle * 3 + 0];
+        triangle.y2 = mesh->vertices[thirdVertexOfTriangle * 3 + 1];
+        triangle.z2 = mesh->vertices[thirdVertexOfTriangle * 3 + 2];
+
+        triangle.centre_x = (triangle.x0 + triangle.x1 + triangle.x2) / 3.0f;
+        triangle.centre_y = (triangle.y0 + triangle.y1 + triangle.y2) / 3.0f;
+        triangle.centre_z = (triangle.z0 + triangle.z1 + triangle.z2) / 3.0f;
+
+        calculateTriangleNormal(triangle, mesh, i);
+
+        vectorOfTriangles.push_back(triangle);
     }
-    #endif
-    #ifdef POINTCLOUDS
-    //create a point cloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-w   s   
-    //now we have all the triangle centres and theor normals stored
-    //centers go to the point cloud obj for easy nearest neighbour calculation
-    //vectorOfTriangles is used to store the normal vectors of the triangles to orient the TCP
-    triangleExtraction(vectorOfTriangles, cloud);
-    std::vector<bool> traced = std::vector<int>(vectorOfTriangles.size(), false);
+
+    #ifdef TEMPORARY
+    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
     pcl::KdTreeFLANN<pcl::PointXYZ> kdTree;
 
@@ -64,120 +144,131 @@ w   s
     std::vector<float> pointKNNSquaredDistance(1);
     #endif
 
-    /*=============================================================*/
+    #ifndef TEMPORARY
+    geometry_msgs::msg::PoseStamped tcp_pose = gripper_group_interface.getCurrentPose();
+    double currentTCP[3] = {tcp_pose.pose.position.x, tcp_pose.pose.position.y, tcp_pose.pose.position.z};
+    #endif
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "x: %2f", vectorOfTriangles[0].centre_x);
+    RCLCPP_WARN(logger, "y: %2f", vectorOfTriangles[0].centre_y);
+    RCLCPP_WARN(logger, "z: %2f", vectorOfTriangles[0].centre_z);
+    #endif
+
+    /* CHANGED: take ALL triangles, in STL order. The old "same normal as the
+       closest triangle" filter was made for a flat cube face and keeps almost
+       nothing on a bowl. NOTE: STL order is not a continuous sweep yet. */
+    std::vector<Triangle> sameSideTriangles = vectorOfTriangles;
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(logger, "triangles to visit: %zu", sameSideTriangles.size());
+    #endif
+    /*----------------------------------------*/
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
-    //create a vector that contains the set of "waypoints"
-    std::vector<geometry_msgs::msg::Pose> target_poses;
+    // CHANGED: log every triangle so coverage_report.py can use it
+    std::ofstream visited("visited.csv");
+    visited << "triangle_id,fraction,executed\n";
 
-    //msg type to set a pose
-    geometry_msgs::msg::Pose target_pose;
+    /*----------START THE OPERATION----------*/
 
-    /*========FIND TRIANGLE WITH THE LEAST AMOUNT OF EDGES=========*/
+    for(unsigned int i = 0; i < sameSideTriangles.size(); i++){
+        RCLCPP_WARN(logger, "start computation number %d", i);
+        target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
+        target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f - 0.1f; // UNCONFIRMED Y transform
+        target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
 
-    //two arrays to store min neighbour triangles
-    std::vector<Triangle> singleNeighbpurTrangles;
-    std::vector<Triangle> doubleNeighbourTriangles;
-    int chosenVector = 0;
-
-    for(std::size_t i = 0; i < vectorOfTriangles.size(); i++){
-        double sign = 0;
-        sign = vectorOfTriangles[i].centreOfTriangle[0] * vectorOfTriangles[i].normal_x + vectorOfTriangles[i].centreOfTriangle[1] * vectorOfTriangles[i].normal_y + vectorOfTriangles[i].centreOfTriangle[2] * vectorOfTriangles[i].normal_z;
-        if (sign > 0){
-            RCLCPP_WARN(logger, "Normal is outward");
-        }
-        if (sign < 0){
-            RCLCPP_WARN(logger, "Normal is inward");
-        }
-        if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 1){
-            //use one if a truiangle only has one neighbour (prefferable)
-            singleNeighbpurTrangles.push_back(vectorOfTriangles[i]);
-        }else if(vectorOfTriangles[i].getValidNeighbours(traced, vectorOfTriangles) == 2){
-            //for 2 neighbours
-            doubleNeighbourTriangles.push_back(vectorOfTriangles[i]);
-        }
-        //if there are no < 2 neighbours triangles we use vectorOfTriangles
-    }
-    
-    //depending on how full the arrays are use them to determine the initial one
-    if(singleNeighbpurTrangles.size() != 0){
-        //if there are triangles with a single neighbour
-        chosenVector = 0;
-    }else if(doubleNeighbourTriangles.size() != 0){
-        //if there are no triangles with a single neighbour but with two neighbours
-        chosenVector = 1;
-    }else{
-        //if there are only triangles with 3 neighbpurs:
-        chosenVector = 2;
-    }
-
-    /*=============================================================*/
-
-    /*=================GET TO THE CLOSEST TRIANGLE=================*/
-    
-    AttemptToReach initialTriangle = AttemptToReach::EMPTY_VECTOR;
-    int closestTriangleIndex = 0;
-    while((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector < 3)){
-        switch(chosenVector){
-            case 0:
-            #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "attempt in singleNeighbpurTrangles");
-            #endif
-            initialTriangle = attemptToReachNextClosest(singleNeighbpurTrangles, closestTriangleIndex);
-            chosenVector++;
-            break;
-
-            case 1:
-            #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "attempt in doubleNeighbourTriangles");
-            #endif
-            initialTriangle = attemptToReachNextClosest(doubleNeighbourTriangles, closestTriangleIndex);
-            chosenVector++;
-            break;
-
-            case 2:
-            #ifdef DEBUGGER
-            RCLCPP_WARN(logger, "attempt in vectorOfTriangles");
-            #endif
-            initialTriangle = attemptToReachNextClosest(vectorOfTriangles, closestTriangleIndex);
-            chosenVector++;
-            break;
-        }
-    }
-    if((initialTriangle != AttemptToReach::TRIANGLE_REACHED) && (chosenVector > 3)){
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "there are no reachable triangles!");
+        #ifndef TEMPORARY
+        target_pose.orientation.x = - 1 / sqrt(2);
+        target_pose.orientation.y = 0.0;
+        target_pose.orientation.z = 0.0;
+        target_pose.orientation.w = 1 / sqrt(2);
         #endif
-    }else if(initialTriangle == AttemptToReach::TRIANGLE_REACHED){
-        vectorOfTriangles[closestTriangleIndex].traced = true;
-        traced[closestTriangleIndex] = true;
-        #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "reached initial triangle, %d!", closestTriangleIndex);
+        #ifdef TEMPORARY
+        tf2::Vector3 normal(
+            sameSideTriangles[i].normal_x,
+            sameSideTriangles[i].normal_y,
+            sameSideTriangles[i].normal_z
+        );
+        normal.normalize();
+        tf2::Vector3 z_axis = normal;
+
+        tf2::Vector3 world_up(0.0, 0.0, -1.0);
+        if (std::abs(z_axis.dot(world_up)) > 0.99) {
+            world_up = tf2::Vector3(0.0, 1.0, 0.0);
+        }
+
+        tf2::Vector3 x_axis = world_up.cross(z_axis);
+        x_axis.normalize();
+
+        tf2::Vector3 y_axis = z_axis.cross(x_axis);
+        y_axis.normalize();
+
+        tf2::Matrix3x3 rot(
+            x_axis.x(), y_axis.x(), z_axis.x(),
+            x_axis.y(), y_axis.y(), z_axis.y(),
+            x_axis.z(), y_axis.z(), z_axis.z()
+        );
+
+        tf2::Quaternion q;
+        rot.getRotation(q);
+        q.normalize();
+
+        target_pose.orientation.x = q.x();
+        target_pose.orientation.y = q.y();
+        target_pose.orientation.z = q.z();
+        target_pose.orientation.w = q.w();
         #endif
+        target_poses.push_back(target_pose);
+
+        double fraction = gripper_group_interface.computeCartesianPath(target_poses, 0.01, trajectory, true);
+
+        #ifdef DEBUGGER
+        RCLCPP_WARN(logger, "Cartesian Path coverage: %.2f%%", fraction * 100.00);
+        #endif
+
+        // CHANGED: 1.0 instead of 0.9, log instead of abort
+        bool done = fraction >= 1.0;
+        visited << sameSideTriangles[i].id << "," << fraction << "," << (done ? 1 : 0) << "\n";
+        visited.flush();
+
+        if (done) {
+            moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
+            cartesian_plan.trajectory = trajectory;
+            gripper_group_interface.execute(cartesian_plan);
+        }
+        else {
+            RCLCPP_ERROR(logger, "Triangle %d: Cartesian path only %.1f%% complete, skipped",
+                         sameSideTriangles[i].id, fraction * 100.0);
+            // CHANGED: no "return 1" here
+        }
+
+        target_poses.pop_back();
     }
+    /*---------------------------------------*/
 
-    /*=============================================================*/
+    preferred_joints = {
+        0.0,
+        - M_PI / 2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+    };
 
+    gripper_group_interface.setJointValueTarget(preferred_joints);
 
-    /*=====================START THE OPERATION=====================*/
+    ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
 
-    int nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[closestTriangleIndex]);
-    while(nextOne != -1){
-        nextOne = startOperation(vectorOfTriangles, traced, vectorOfTriangles[nextOne]);
-    }
-
-    /*=============================================================*/
-
-    goHome();
-
-    gripper_group_interface.reset();
-
-    if (rclcpp::ok()) {
+    if(!ok){
+        RCLCPP_ERROR(logger, "Planning to home failed");
         rclcpp::shutdown();
+        return 1;
     }
 
-    node.reset();
+    RCLCPP_INFO(logger, "Tracing complete. Returning to home position now...");
+    gripper_group_interface.execute(home_plan);
 
     return 0;
         

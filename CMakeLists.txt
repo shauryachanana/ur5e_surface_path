@@ -26,6 +26,7 @@ add_executable(
   src/pathPlanning.cpp
   src/pointCloudOperations.cpp
 )
+add_executable(reachability src/reachability.cpp)
 
 set(dependencies
   rclcpp
@@ -42,6 +43,7 @@ set(dependencies
 
 ament_target_dependencies(hello_moveit ${dependencies})
 ament_target_dependencies(trace_cube ${dependencies})
+ament_target_dependencies(reachability ${dependencies})
 
 target_link_libraries(trace_cube
   ${PCL_LIBRARIES}
@@ -54,11 +56,16 @@ target_include_directories(trace_cube PUBLIC
 add_definitions(${PCL_DEFINITIONS})
 
 
-install(TARGETS 
-  hello_moveit
-  trace_cube
+
+install(
+  TARGETS
+    hello_moveit
+    trace_cube
+    reachability
   DESTINATION lib/${PROJECT_NAME}
 )
+
+
 install(PROGRAMS
   src/reconstruct_mesh.py
   DESTINATION lib/${PROJECT_NAME}
