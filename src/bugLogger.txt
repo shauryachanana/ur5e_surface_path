@@ -1,2 +1,1 @@
-on my laptop the robot's init position is sompletely off, please check it.
-i dont see what can cause it,  i will send a msg in a group if i find it.
+nothing clearly visible
