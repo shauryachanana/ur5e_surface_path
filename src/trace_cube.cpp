@@ -1,275 +1,1584 @@
 #include "trace_cube.hpp"
+#include "stateMachineIKU/tracingStateMachine.hpp"
 
-#include <fstream>
-#include <vector>
-#include <math.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/kdtree/kdtree_flann.h>
+
+#include <algorithm>
+#include <atomic>
 #include <chrono>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Vector3.h>
-#include <geometric_shapes/shapes.h>
-#include <geometric_shapes/mesh_operations.h>
-#include <geometric_shapes/shape_operations.h>
+#include <cmath>
+#include <fstream>
+#include <thread>
 
-//load a file
-std::string mesh_path = "file://" + ament_index_cpp::get_package_share_directory("ur5e_surface_path") + "/meshes/50cmCube.stl";
-//now we have info on all the triangles
-shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_path);
+//TODO: remake everything for pointers
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+// ================================================================
+// GLOBAL ROS / MOVEIT OBJECTS
+// ================================================================
 
-#define DEBUGGER
-#define TEMPORARY
+std::shared_ptr<rclcpp::Node> node;
 
-struct Triangle{
-    int id;   // CHANGED: index in STL order, needed for visited.csv
-    float x0, y0, z0;
-    float x1, y1, z1;
-    float x2, y2, z2;
-    float centre_x, centre_y, centre_z;
-    float normal_x, normal_y, normal_z;
+std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+
+std::unique_ptr<moveit::planning_interface::MoveGroupInterface>
+    gripper_group_interface;
+
+// ================================================================
+// GLOBALS
+// ================================================================
+
+tracingStateMachine sm;
+int chosenVector = 0;
+
+std::vector<Triangle*> vectorOfTriangles;
+std::vector<Triangle*> singleNeighbourTrangles;
+std::vector<Triangle*> doubleNeighbourTriangles;
+
+// ================================================================
+// MESH
+// ================================================================
+
+std::string mesh_path =
+    "file://" +
+    ament_index_cpp::get_package_share_directory("ur5e_surface_path") +
+    "/meshes/50cmCube.stl";
+
+shapes::Mesh* mesh =
+    shapes::createMeshFromResource(mesh_path);
+
+
+// ================================================================
+// GLOBAL PATH DATA
+// ================================================================
+
+extern std::stack<Waypoint> pathHistory;
+extern std::stack<Waypoint> stackOfReachableWaypoints;
+
+std::vector<bool> traced;
+
+
+// ================================================================
+// PERFORMANCE ANALYSIS RESULT
+// ================================================================
+
+struct CoverageResult
+{
+    std::vector<bool> covered;
+
+    std::size_t covered_triangles = 0;
+
+    double triangle_coverage_percent = 0.0;
+
+    double covered_area_m2 = 0.0;
+    double total_area_m2 = 0.0;
+    double area_coverage_percent = 0.0;
+
+    double average_nearest_distance_mm = 0.0;
+    double maximum_nearest_distance_mm = 0.0;
 };
 
-void calculateTriangleNormal(Triangle& triangle, shapes::Mesh* mesh, int index){
-    triangle.normal_x = mesh->triangle_normals[index*3 + 0];
-    triangle.normal_y = mesh->triangle_normals[index*3 + 1];
-    triangle.normal_z = mesh->triangle_normals[index*3 + 2];
+
+// ================================================================
+// TRIANGLE AREA
+// ================================================================
+
+//remove
+double triangleAreaM2(const Triangle& t)
+{
+    // STL coordinates are in millimetres.
+    // Convert vectors to metres.
+
+    double ax = (t.x[1] - t.x[0]) * 0.001;
+    double ay = (t.y[1] - t.y[0]) * 0.001;
+    double az = (t.z[1] - t.z[0]) * 0.001;
+
+    double bx = (t.x[2] - t.x[0]) * 0.001;
+    double by = (t.y[2] - t.y[0]) * 0.001;
+    double bz = (t.z[2] - t.z[0]) * 0.001;
+
+    double cx = ay * bz - az * by;
+    double cy = az * bx - ax * bz;
+    double cz = ax * by - ay * bx;
+
+    return 0.5 * std::sqrt(
+        cx * cx +
+        cy * cy +
+        cz * cz
+    );
 }
 
-int main(int argc, char** argv){
-    rclcpp::init(argc, argv);
 
-    // initialize them here after rclcpp::init()
-    node = std::make_shared<rclcpp::Node>(
-        "trace_cube",
-        rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
+// ================================================================
+// COVERAGE ANALYSIS
+// ================================================================
+
+CoverageResult analyseCoverage(
+    const std::vector<geometry_msgs::msg::Point>& trace_points,
+    pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree,
+    double coverage_radius_m,
+    double interpolation_step_m)
+{
+    CoverageResult result;
+
+    result.covered.resize(
+        vectorOfTriangles.size(),
+        false
     );
 
-    auto const logger = rclcpp::get_logger("trace_cube");
+    if(trace_points.empty() || vectorOfTriangles.empty())
+    {
+        return result;
+    }
 
-    using moveit::planning_interface::MoveGroupInterface;
 
-    auto gripper_group_interface = MoveGroupInterface(node, "ur_manipulator");
+    // ============================================================
+    // TCP DISTANCE FROM STL
+    // ============================================================
 
-    gripper_group_interface.setPlanningPipelineId("ompl");
-    gripper_group_interface.setPlannerId("RRTConnectkConfigDefault");
-    gripper_group_interface.setPlanningTime(5.0);
-    gripper_group_interface.setMaxVelocityScalingFactor(1.0);
-    gripper_group_interface.setMaxAccelerationScalingFactor(0.0);
+    double nearest_sum_mm = 0.0;
+    double nearest_max_mm = 0.0;
+    std::size_t nearest_count = 0;
 
-    RCLCPP_INFO(logger, "Planning pipeline: %s", gripper_group_interface.getPlanningPipelineId().c_str());
-    RCLCPP_INFO(logger, "Planner ID: %s", gripper_group_interface.getPlannerId().c_str());
-    RCLCPP_INFO(logger, "Planning time: %.2f", gripper_group_interface.getPlanningTime());
+    for(const auto& p : trace_points)
+    {
+        pcl::PointXYZ search_point;
 
-    std::vector<double> preferred_joints = {
-        -101.0 * M_PI / 180.0,
-        -115.0 * M_PI / 180.0,
-        -25.0 * M_PI / 180.0,
-        -205.0 * M_PI / 180.0,
-        -101.0 * M_PI / 180.0,
-        -180.0 * M_PI / 180.0
+        search_point.x = p.x;
+        search_point.y = p.y;
+        search_point.z = p.z;
+
+        std::vector<int> index(1);
+        std::vector<float> squared_distance(1);
+
+        if(kdtree.nearestKSearch(
+                search_point,
+                1,
+                index,
+                squared_distance) > 0)
+        {
+            double distance_mm =
+                std::sqrt(
+                    squared_distance[0]
+                ) * 1000.0;
+
+            nearest_sum_mm += distance_mm;
+
+            nearest_max_mm =
+                std::max(
+                    nearest_max_mm,
+                    distance_mm
+                );
+
+            nearest_count++;
+        }
+    }
+
+    if(nearest_count > 0)
+    {
+        result.average_nearest_distance_mm =
+            nearest_sum_mm /
+            static_cast<double>(nearest_count);
+
+        result.maximum_nearest_distance_mm =
+            nearest_max_mm;
+    }
+
+
+    // ============================================================
+    // HELPER TO MARK TRIANGLES NEAR TCP
+    // ============================================================
+
+//remove
+    auto markNearbyTriangles =
+        [&](double x, double y, double z)
+    {
+        pcl::PointXYZ search_point;
+
+        search_point.x = x;
+        search_point.y = y;
+        search_point.z = z;
+
+        std::vector<int> indices;
+        std::vector<float> squared_distances;
+
+        if(kdtree.radiusSearch(
+                search_point,
+                coverage_radius_m,
+                indices,
+                squared_distances) > 0)
+        {
+            for(int index : indices)
+            {
+                if(index >= 0 &&
+                   static_cast<std::size_t>(index) <
+                       result.covered.size())
+                {
+                    result.covered[index] = true;
+                }
+            }
+        }
     };
 
-    gripper_group_interface.setJointValueTarget(preferred_joints);
 
-    moveit::planning_interface::MoveGroupInterface::Plan home_plan;
-    geometry_msgs::msg::Pose target_pose;
+    // ============================================================
+    // FOLLOW COMPLETE TCP LINE
+    //
+    // We interpolate between recorded TCP samples so coverage does
+    // not depend only on the discrete 100 ms samples.
+    // ============================================================
 
-    auto ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
+    for(std::size_t i = 1;
+        i < trace_points.size();
+        ++i)
+    {
+        const auto& a =
+            trace_points[i - 1];
 
-    if (!ok) {
-        RCLCPP_ERROR(logger, "Phase 1 planning failed!");
-        rclcpp::shutdown();
+        const auto& b =
+            trace_points[i];
+
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        double dz = b.z - a.z;
+
+        double segment_length =
+            std::sqrt(
+                dx * dx +
+                dy * dy +
+                dz * dz
+            );
+
+        int steps =
+            std::max(
+                1,
+                static_cast<int>(
+                    std::ceil(
+                        segment_length /
+                        interpolation_step_m
+                    )
+                )
+            );
+
+        for(int s = 0; s < steps; ++s)
+        {
+            double t =
+                static_cast<double>(s) /
+                static_cast<double>(steps);
+
+            double x =
+                a.x + t * dx;
+
+            double y =
+                a.y + t * dy;
+
+            double z =
+                a.z + t * dz;
+
+            markNearbyTriangles(
+                x,
+                y,
+                z
+            );
+        }
+    }
+
+
+    // Include final TCP position.
+
+    const auto& last =
+        trace_points.back();
+
+    markNearbyTriangles(
+        last.x,
+        last.y,
+        last.z
+    );
+
+
+    // ============================================================
+    // CALCULATE COVERAGE
+    // ============================================================
+
+    for(std::size_t i = 0;
+        i < vectorOfTriangles.size();
+        ++i)
+    {
+        double area =
+            triangleAreaM2(
+                *vectorOfTriangles[i]
+            );
+
+        result.total_area_m2 += area;
+
+        if(result.covered[i])
+        {
+            result.covered_triangles++;
+            result.covered_area_m2 += area;
+        }
+    }
+
+
+    result.triangle_coverage_percent =
+        100.0 *
+        static_cast<double>(
+            result.covered_triangles
+        ) /
+        static_cast<double>(
+            vectorOfTriangles.size()
+        );
+
+
+    if(result.total_area_m2 > 0.0)
+    {
+        result.area_coverage_percent =
+            100.0 *
+            result.covered_area_m2 /
+            result.total_area_m2;
+    }
+
+
+    return result;
+}
+
+
+// ================================================================
+// MAIN
+// ================================================================
+
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+
+
+    // ============================================================
+    // PERFORMANCE DATA
+    // ============================================================
+
+    std::atomic<bool> measuring{false};
+
+    double total_path_length = 0.0;
+
+    std::vector<geometry_msgs::msg::Point>
+        trace_points;
+
+
+    // ============================================================
+    // NODE
+    // ============================================================
+
+    node =
+        std::make_shared<rclcpp::Node>(
+            "trace_cube",
+            rclcpp::NodeOptions()
+                .automatically_declare_parameters_from_overrides(
+                    true
+                )
+        );
+
+
+    // ============================================================
+    // TF
+    // ============================================================
+
+    tf_buffer =
+        std::make_shared<tf2_ros::Buffer>(
+            node->get_clock()
+        );
+
+    tf_listener =
+        std::make_shared<
+            tf2_ros::TransformListener
+        >(
+            *tf_buffer,
+            node,
+            false
+        );
+
+    // TF callbacks are serviced by our executor thread.
+    tf_buffer->setUsingDedicatedThread(true);
+
+
+    // ============================================================
+    // EXECUTOR
+    // ============================================================
+
+    auto spinner =
+        std::make_shared<
+            rclcpp::executors::MultiThreadedExecutor
+        >();
+
+    spinner->add_node(node);
+
+    std::thread spinner_thread(
+        [spinner]()
+        {
+            spinner->spin();
+        }
+    );
+
+
+    // ============================================================
+    // RVIZ TCP TRACE PUBLISHER
+    // ============================================================
+
+    auto marker_pub =
+        node->create_publisher<
+            visualization_msgs::msg::Marker
+        >(
+            "tcp_trace_marker",
+            10
+        );
+
+
+    // ============================================================
+    // TCP SAMPLING TIMER
+    //
+    // Runs every 100 ms but records points ONLY while
+    // measuring == true.
+    // ============================================================
+
+    auto tcp_marker_timer =
+        node->create_wall_timer(
+            std::chrono::milliseconds(100),
+
+            [
+                marker_pub,
+                &measuring,
+                &total_path_length,
+                &trace_points
+            ]()
+            {
+                if(!measuring.load())
+                {
+                    return;
+                }
+
+
+                // -----------------------------------------------
+                // Read TCP from TF.
+                // -----------------------------------------------
+
+                // Do not record an invalid zero point if TF fails.
+                if(!getTCPpose())
+                {
+                    return;
+                }
+
+
+                geometry_msgs::msg::Point point;
+
+                point.x = sm.vars.currentTCP[0];
+                point.y = sm.vars.currentTCP[1];
+                point.z = sm.vars.currentTCP[2];
+
+
+                // -----------------------------------------------
+                // Calculate total physical TCP path length.
+                // -----------------------------------------------
+
+                static geometry_msgs::msg::Point
+                    previous_sample;
+
+                static bool
+                    have_previous_sample = false;
+
+
+                if(have_previous_sample)
+                {
+                    double step_distance =
+                        std::sqrt(
+                            std::pow(
+                                point.x -
+                                previous_sample.x,
+                                2
+                            )
+                            +
+                            std::pow(
+                                point.y -
+                                previous_sample.y,
+                                2
+                            )
+                            +
+                            std::pow(
+                                point.z -
+                                previous_sample.z,
+                                2
+                            )
+                        );
+
+                    total_path_length +=
+                        step_distance;
+                }
+
+
+                previous_sample = point;
+                have_previous_sample = true;
+
+
+                // -----------------------------------------------
+                // Store trace points only when the TCP has moved
+                // at least 2 mm from the last stored point.
+                // -----------------------------------------------
+
+                static geometry_msgs::msg::Point
+                    last_point;
+
+                static bool first_point = true;
+
+
+                double distance =
+                    std::sqrt(
+                        std::pow(
+                            point.x -
+                            last_point.x,
+                            2
+                        )
+                        +
+                        std::pow(
+                            point.y -
+                            last_point.y,
+                            2
+                        )
+                        +
+                        std::pow(
+                            point.z -
+                            last_point.z,
+                            2
+                        )
+                    );
+
+
+                if(first_point ||
+                   distance >= 0.002)
+                {
+                    trace_points.push_back(
+                        point
+                    );
+
+                    last_point = point;
+                    first_point = false;
+                }
+
+
+                // -----------------------------------------------
+                // Publish RViz line marker.
+                // -----------------------------------------------
+
+                visualization_msgs::msg::Marker
+                    marker;
+
+                marker.header.frame_id =
+                    "base_link";
+
+                marker.header.stamp =
+                    node->now();
+
+                marker.ns =
+                    "tcp_live";
+
+                marker.id = 0;
+
+                marker.type =
+                    visualization_msgs::msg::Marker::
+                        LINE_STRIP;
+
+                marker.action =
+                    visualization_msgs::msg::Marker::
+                        ADD;
+
+                marker.points =
+                    trace_points;
+
+                marker.pose.orientation.w =
+                    1.0;
+
+                marker.scale.x =
+                    0.005;
+
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.0;
+                marker.color.a = 1.0;
+
+
+                static int print_counter = 0;
+
+                print_counter++;
+
+
+                if(print_counter >= 20)
+                {
+                    RCLCPP_INFO(
+                        node->get_logger(),
+                        "Actual TCP path length: %.3f m",
+                        total_path_length
+                    );
+
+                    print_counter = 0;
+                }
+
+
+                marker_pub->publish(
+                    marker
+                );
+            }
+        );
+
+
+    // ============================================================
+    // WAIT FOR TF / CLOCK / JOINT STATES
+    // ============================================================
+
+    rclcpp::sleep_for(
+        std::chrono::seconds(2)
+    );
+
+
+    // ============================================================
+    // MOVEIT
+    // ============================================================
+
+    gripper_group_interface =
+        std::make_unique<
+            moveit::planning_interface::
+                MoveGroupInterface
+        >(
+            node,
+            "ur_manipulator"
+        );
+
+
+    init();
+
+    goHome();
+
+
+    auto logger =
+        rclcpp::get_logger(
+            "main"
+        );
+
+
+    // ============================================================
+    // EXTRACT TRIANGLES
+    // ============================================================
+
+    RCLCPP_WARN(logger, "triangleExtraction start");
+
+    triangleExtraction();
+
+    RCLCPP_WARN(logger, "triangleExtraction done");
+
+    // for(auto* t : vectorOfTriangles)
+    // RCLCPP_WARN(logger, "NEIGH %d: nb=(%d,%d,%d) edges=(%d-%d, %d-%d, %d-%d)",
+    //     t->myIndex,
+    //     t->myNeighbours[0], t->myNeighbours[1], t->myNeighbours[2],
+    //     t->triangleEdges[0]->v1, t->triangleEdges[0]->v2,
+    //     t->triangleEdges[1]->v1, t->triangleEdges[1]->v2,
+    //     t->triangleEdges[2]->v1, t->triangleEdges[2]->v2);
+
+    if(vectorOfTriangles.empty())
+    {
+        RCLCPP_ERROR(
+            logger,
+            "No triangles extracted from mesh"
+        );
+
+        gripper_group_interface.reset();
+
+        spinner->cancel();
+
+        if(spinner_thread.joinable())
+        {
+            spinner_thread.join();
+        }
+
+        tcp_marker_timer.reset();
+        marker_pub.reset();
+
+        tf_listener.reset();
+        tf_buffer.reset();
+
+        spinner->remove_node(node);
+        node.reset();
+
+        spinner.reset();
+
+        if(rclcpp::ok())
+        {
+            rclcpp::shutdown();
+        }
+
         return 1;
     }
 
-    gripper_group_interface.execute(home_plan);
 
-    std::vector<geometry_msgs::msg::Pose> target_poses;
+    // ============================================================
+    // PERFORMANCE CLOUD
+    //
+    // One point corresponding to each triangle centre / TCP target.
+    // ============================================================
 
-    /*------------PROCESS STL FILE------------*/
-
-    node->declare_parameter("mesh_filename", "bowl_surface.stl");
-    std::string mesh_filename = node->get_parameter("mesh_filename").as_string();
-    std::string mesh_path = "file://" +
-        ament_index_cpp::get_package_share_directory("ur5e_surface_path") +
-        "/meshes/" + mesh_filename;
-
-    shapes::Mesh* mesh = shapes::createMeshFromResource(
-        mesh_path
+    pcl::PointCloud<
+        pcl::PointXYZ
+    >::Ptr performance_cloud(
+        new pcl::PointCloud<
+            pcl::PointXYZ
+        >
     );
 
-    std::vector<Triangle> vectorOfTriangles;
 
-    for(unsigned int i = 0; i< mesh->triangle_count; i++){
-        int firstVertexOfTriangle = mesh->triangles[i*3 + 0];
-        int secondVertexOfTriangle = mesh->triangles[i*3 + 1];
-        int thirdVertexOfTriangle = mesh->triangles[i*3 + 2];
+    performance_cloud->points.reserve(
+        vectorOfTriangles.size()
+    );
 
-        Triangle triangle;
-        triangle.id = i;   // CHANGED
 
-        triangle.x0 = mesh->vertices[firstVertexOfTriangle * 3 + 0];
-        triangle.y0 = mesh->vertices[firstVertexOfTriangle * 3 + 1];
-        triangle.z0 = mesh->vertices[firstVertexOfTriangle * 3 + 2];
+    for(const auto& triangle : vectorOfTriangles)
+    {
+        pcl::PointXYZ p;
 
-        triangle.x1 = mesh->vertices[secondVertexOfTriangle * 3 + 0];
-        triangle.y1 = mesh->vertices[secondVertexOfTriangle * 3 + 1];
-        triangle.z1 = mesh->vertices[secondVertexOfTriangle * 3 + 2];
+        p.x =
+            -(
+                triangle->centreOfTriangle[0] *
+                0.001f
+            )
+            -
+            (
+                triangle->normal_x *
+                0.05f
+            );
 
-        triangle.x2 = mesh->vertices[thirdVertexOfTriangle * 3 + 0];
-        triangle.y2 = mesh->vertices[thirdVertexOfTriangle * 3 + 1];
-        triangle.z2 = mesh->vertices[thirdVertexOfTriangle * 3 + 2];
+        p.y =
+            -(
+                triangle->centreOfTriangle[1] *
+                0.001f
+            )
+            +
+            0.65f
+            -
+            (
+                triangle->normal_y *
+                0.05f
+            );
 
-        triangle.centre_x = (triangle.x0 + triangle.x1 + triangle.x2) / 3.0f;
-        triangle.centre_y = (triangle.y0 + triangle.y1 + triangle.y2) / 3.0f;
-        triangle.centre_z = (triangle.z0 + triangle.z1 + triangle.z2) / 3.0f;
+        p.z =
+            (
+                triangle->centreOfTriangle[2] *
+                0.001f
+            )
+            +
+            (
+                triangle->normal_z *
+                0.05f
+            );
 
-        calculateTriangleNormal(triangle, mesh, i);
-
-        vectorOfTriangles.push_back(triangle);
+        performance_cloud->push_back(
+            p
+        );
     }
 
-    #ifdef TEMPORARY
-    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
-    auto tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
-    pcl::KdTreeFLANN<pcl::PointXYZ> kdTree;
+    RCLCPP_INFO(
+        logger,
+        "Performance cloud contains %zu points",
+        performance_cloud->size()
+    );
 
-    //create kdTree
-    kdTree.setInputCloud(cloud);
 
-    //in this vector we will get an index of the nearest neighbour
-    std::vector<int> pointIdxKNNSearch(1);
-    //in this vector we will get a distance to the nearest neighbour
-    std::vector<float> pointKNNSquaredDistance(1);
-    #endif
+    pcl::KdTreeFLANN<
+        pcl::PointXYZ
+    > performance_kdtree;
 
-    #ifndef TEMPORARY
-    geometry_msgs::msg::PoseStamped tcp_pose = gripper_group_interface.getCurrentPose();
-    double currentTCP[3] = {tcp_pose.pose.position.x, tcp_pose.pose.position.y, tcp_pose.pose.position.z};
-    #endif
+    performance_kdtree.setInputCloud(
+        performance_cloud
+    );
 
-    #ifdef DEBUGGER
-    RCLCPP_WARN(logger, "x: %2f", vectorOfTriangles[0].centre_x);
-    RCLCPP_WARN(logger, "y: %2f", vectorOfTriangles[0].centre_y);
-    RCLCPP_WARN(logger, "z: %2f", vectorOfTriangles[0].centre_z);
-    #endif
 
-    /* CHANGED: take ALL triangles, in STL order. The old "same normal as the
-       closest triangle" filter was made for a flat cube face and keeps almost
-       nothing on a bowl. NOTE: STL order is not a continuous sweep yet. */
-    std::vector<Triangle> sameSideTriangles = vectorOfTriangles;
-
-    #ifdef DEBUGGER
-    RCLCPP_WARN(logger, "triangles to visit: %zu", sameSideTriangles.size());
-    #endif
-    /*----------------------------------------*/
-
-    moveit_msgs::msg::RobotTrajectory trajectory;
-
-    // CHANGED: log every triangle so coverage_report.py can use it
-    std::ofstream visited("visited.csv");
-    visited << "triangle_id,fraction,executed\n";
-
-    /*----------START THE OPERATION----------*/
-
-    for(unsigned int i = 0; i < sameSideTriangles.size(); i++){
-        RCLCPP_WARN(logger, "start computation number %d", i);
-        target_pose.position.x = sameSideTriangles[i].centre_x * 0.001f;
-        target_pose.position.y = 1.0f - sameSideTriangles[i].centre_y * 0.001f - 0.1f; // UNCONFIRMED Y transform
-        target_pose.position.z = sameSideTriangles[i].centre_z * 0.001f;
-
-        #ifndef TEMPORARY
-        target_pose.orientation.x = - 1 / sqrt(2);
-        target_pose.orientation.y = 0.0;
-        target_pose.orientation.z = 0.0;
-        target_pose.orientation.w = 1 / sqrt(2);
-        #endif
-        #ifdef TEMPORARY
-        tf2::Vector3 normal(
-            sameSideTriangles[i].normal_x,
-            sameSideTriangles[i].normal_y,
-            sameSideTriangles[i].normal_z
+    traced =
+        std::vector<bool>(
+            vectorOfTriangles.size(),
+            false
         );
-        normal.normalize();
-        tf2::Vector3 z_axis = normal;
 
-        tf2::Vector3 world_up(0.0, 0.0, -1.0);
-        if (std::abs(z_axis.dot(world_up)) > 0.99) {
-            world_up = tf2::Vector3(0.0, 1.0, 0.0);
+
+    // ============================================================
+    // FIND TRIANGLES WITH FEWEST NEIGHBOURS
+    // ============================================================
+
+    RCLCPP_WARN(logger, "leastNeighbours start");
+
+    for(std::size_t i = 0;
+        i < vectorOfTriangles.size();
+        ++i)
+    {
+        int validNeighbours =
+            vectorOfTriangles[i]->getValidNeighbours();
+
+
+        if(validNeighbours == 1)
+        {
+            singleNeighbourTrangles.push_back(vectorOfTriangles[i]);
         }
+        else if(validNeighbours == 2)
+        {
+            doubleNeighbourTriangles.push_back(vectorOfTriangles[i]);
+        }
+    }
 
-        tf2::Vector3 x_axis = world_up.cross(z_axis);
-        x_axis.normalize();
+    RCLCPP_WARN(logger, "leastNeighbours done");
 
-        tf2::Vector3 y_axis = z_axis.cross(x_axis);
-        y_axis.normalize();
+    if(!singleNeighbourTrangles.empty())
+    {
+        chosenVector = 0;
+    }
+    else if(!doubleNeighbourTriangles.empty())
+    {
+        chosenVector = 1;
+    }
+    else
+    {
+        chosenVector = 2;
+    }
 
-        tf2::Matrix3x3 rot(
-            x_axis.x(), y_axis.x(), z_axis.x(),
-            x_axis.y(), y_axis.y(), z_axis.y(),
-            x_axis.z(), y_axis.z(), z_axis.z()
+//ggg
+    // ============================================================
+    // PLANNING PHASE
+    //
+    // IMPORTANT:
+    // measuring remains FALSE here.
+    //
+    // startOperation() plans the complete virtual trajectory.
+    // We do NOT want to measure TCP performance here because the
+    // real robot is not executing the surface path yet.
+    //
+    // For large meshes, planning can spend a long time backtracking.
+    // The monitor below distinguishes genuine progress from repeated
+    // retry/backtracking behaviour.
+    // ============================================================
+
+    RCLCPP_WARN(
+        logger,
+        "START PLANNING OPERATION"
+    );
+
+
+    std::size_t planningIterations = 0;
+
+    std::size_t previousTracedCount =
+        std::count(
+            traced.begin(),
+            traced.end(),
+            true
         );
 
-        tf2::Quaternion q;
-        rot.getRotation(q);
-        q.normalize();
+    std::size_t iterationsWithoutProgress = 0;
 
-        target_pose.orientation.x = q.x();
-        target_pose.orientation.y = q.y();
-        target_pose.orientation.z = q.z();
-        target_pose.orientation.w = q.w();
-        #endif
-        target_poses.push_back(target_pose);
+    /*
+     * Backtracking is expected, especially on a dense curved surface.
+     * Therefore this limit is deliberately generous.
+     *
+     * Planning is stopped only if thousands of consecutive calls to
+     * startOperation() fail to add even one new traced triangle->
+     */
+    const std::size_t MAX_NO_PROGRESS =
+        std::max<std::size_t>(
+            5000,
+            vectorOfTriangles.size() * 4
+        );
 
-        double fraction = gripper_group_interface.computeCartesianPath(target_poses, 0.01, trajectory, true);
+    constexpr std::size_t PROGRESS_LOG_INTERVAL = 100;
 
+    const auto planningStart =
+        std::chrono::steady_clock::now();
+
+    RCLCPP_WARN(
+        logger,
+        "statemachine start"
+    );
+
+    tracingStateMachine_ctor(&sm);    // must be called first
+    tracingStateMachine_start(&sm);   // enters the initial state
+
+    RCLCPP_WARN(
+        logger,
+        "statemachine started"
+    );
+
+    int oldIterations = sm.vars.iterationsBeforeCancel;
+
+    while(rclcpp::ok() && !sm.vars.noReachableTrianglesLeft && !sm.vars.diedAtTheBeginning)
+    {
         #ifdef DEBUGGER
-        RCLCPP_WARN(logger, "Cartesian Path coverage: %.2f%%", fraction * 100.00);
+        RCLCPP_WARN(
+            logger,iteration
+            "dispatch"
+        );
         #endif
-
-        // CHANGED: 1.0 instead of 0.9, log instead of abort
-        bool done = fraction >= 1.0;
-        visited << sameSideTriangles[i].id << "," << fraction << "," << (done ? 1 : 0) << "\n";
-        visited.flush();
-
-        if (done) {
-            moveit::planning_interface::MoveGroupInterface::Plan cartesian_plan;
-            cartesian_plan.trajectory = trajectory;
-            gripper_group_interface.execute(cartesian_plan);
+        
+        tracingStateMachine_dispatch_event(&sm, tracingStateMachine_EventId_DO);
+ 
+        // one entry into this state == one old startOperation() call
+        if(sm.state_id != tracingStateMachine_StateId_LEASTNEIGHBOURSSEARCHSTATE){
+            continue;
         }
-        else {
-            RCLCPP_ERROR(logger, "Triangle %d: Cartesian path only %.1f%% complete, skipped",
-                         sameSideTriangles[i].id, fraction * 100.0);
-            // CHANGED: no "return 1" here
-        }
+        planningIterations++;
 
-        target_poses.pop_back();
+        std::size_t currentTracedCount =
+            std::count(traced.begin(), traced.end(), true);
+
+        if(currentTracedCount > previousTracedCount){
+            iterationsWithoutProgress = 0;
+            previousTracedCount = currentTracedCount;
+        }else{
+                iterationsWithoutProgress++;
+            }
+        if(planningIterations % PROGRESS_LOG_INTERVAL == 0){
+            const double percent = 100.0 * (double)currentTracedCount
+                                         / (double)vectorOfTriangles.size();
+            const double elapsedSeconds = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - planningStart).count();
+ 
+            RCLCPP_WARN(logger,
+                "PLANNING: iteration=%zu | traced=%zu/%zu (%.2f%%) | "
+                "current triangle=%d | pathHistory=%zu | "
+                "execution waypoints=%zu | no-progress=%zu | elapsed=%.1f s",
+                planningIterations, currentTracedCount, vectorOfTriangles.size(), percent,
+                sm.vars.currentTriangle ? sm.vars.currentTriangle->myIndex : -1,
+                pathHistory.size(), stackOfReachableWaypoints.size(),
+                iterationsWithoutProgress, elapsedSeconds);
+        }
+ 
+        // endless retry / backtracking guard
+        if(iterationsWithoutProgress > MAX_NO_PROGRESS){
+            RCLCPP_ERROR(logger,
+                "Planning stopped: no new triangle was traced for %zu consecutive "
+                "iterations. This strongly suggests repeated backtracking or "
+                "retry behaviour.", iterationsWithoutProgress);
+            break;
+        }
+    }
+
+    sm.vars.currentState.reset(); 
+
+    if(sm.vars.diedAtTheBeginning)
+    {
+        RCLCPP_ERROR(
+            logger,
+            "There are no reachable initial triangles. Aborting."
+        );
+ 
+        gripper_group_interface.reset();
+ 
+        spinner->cancel();
+ 
+        if(spinner_thread.joinable())
+        {
+            spinner_thread.join();
+        }
+ 
+        tcp_marker_timer.reset();
+        marker_pub.reset();
+ 
+        tf_listener.reset();
+        tf_buffer.reset();
+ 
+        spinner->remove_node(node);
+        node.reset();
+ 
+        spinner.reset();
+ 
+        if(rclcpp::ok())
+        {
+            rclcpp::shutdown();
+        }
+ 
+        return 1;
     }
     /*---------------------------------------*/
 
-    preferred_joints = {
-        0.0,
-        - M_PI / 2.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0
-    };
-
-    gripper_group_interface.setJointValueTarget(preferred_joints);
-
-    ok = static_cast<bool>(gripper_group_interface.plan(home_plan));
-
-    if(!ok){
-        RCLCPP_ERROR(logger, "Planning to home failed");
-        rclcpp::shutdown();
-        return 1;
+    while(stackOfReachableWaypoints.size() > lastUsefulWaypointCount){
+        stackOfReachableWaypoints.pop();
     }
 
-    RCLCPP_INFO(logger, "Tracing complete. Returning to home position now...");
-    gripper_group_interface.execute(home_plan);
+    const std::size_t finalTracedCount =
+        std::count(
+            traced.begin(),
+            traced.end(),
+            true
+        );
+
+    const double finalPlanningPercent =
+        100.0 *
+        static_cast<double>(
+            finalTracedCount
+        ) /
+        static_cast<double>(
+            vectorOfTriangles.size()
+        );
+
+    const double totalPlanningSeconds =
+        std::chrono::duration<double>(
+            std::chrono::steady_clock::now() -
+            planningStart
+        ).count();
+
+
+    RCLCPP_WARN(
+        logger,
+        "PLANNING FINISHED: iterations=%zu | "
+        "traced=%zu/%zu (%.2f%%) | "
+        "stored execution waypoints=%zu | "
+        "time=%.1f s",
+        planningIterations,
+        finalTracedCount,
+        vectorOfTriangles.size(),
+        finalPlanningPercent,
+        stackOfReachableWaypoints.size(),
+        totalPlanningSeconds
+    );
+
+
+    // ============================================================
+    // PLAN COMPLETE
+    // ============================================================
+
+    gripper_group_interface
+        ->setStartStateToCurrentState();
+
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(
+        logger,
+        "setStartStateToCurrentState passed"
+    );
+    #endif
+
+
+    // Convert stack into chronological execution order.
+
+    std::vector<Waypoint>
+        orderedWaypoints =
+            extractOrderedPath(
+                stackOfReachableWaypoints
+            );
+
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(
+        logger,
+        "extractOrderedPath passed"
+    );
+    #endif
+
+
+    plannedPath.clear();
+
+
+    for(const auto& wp : orderedWaypoints)
+    {
+        // EDGE waypoints may use triangleIndex = 0.
+        // Keep existing project behaviour.
+        if(wp.triangle != nullptr)
+        {
+            // plannedPath is vector<Triangle>, so copy the pointee
+            plannedPath.push_back(*wp.triangle);
+        }
+    }
+
+    // ============================================================
+    // PLANNED COVERAGE
+    // ============================================================
+
+    float tracedf = 0.0f;
+
+
+    for(std::size_t i = 0;
+        i < vectorOfTriangles.size();
+        ++i)
+    {
+        if(vectorOfTriangles[i]->traced)
+        {
+            RCLCPP_WARN(logger, "TRACED %d %.1f %.1f %.1f", 
+                vectorOfTriangles[i]->myIndex,
+                -vectorOfTriangles[i]->centreOfTriangle[0]* 0.001f,
+                -vectorOfTriangles[i]->centreOfTriangle[1]* 0.001f + 0.65f,
+                vectorOfTriangles[i]->centreOfTriangle[2]* 0.001f
+            );
+            RCLCPP_WARN(
+                logger,
+                "edge1 %.3f %.3f %.3f edge2 %.3f %.3f %.3f edge3 %.3f %.3f %.3f",
+                -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[0]->centreOfEdge[2]* 0.001f,
+
+                -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[1]->centreOfEdge[2]* 0.001f,
+
+                -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[0]* 0.001f,
+                -vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[1]* 0.001f +  0.65f,
+                vectorOfTriangles[i]->triangleEdges[2]->centreOfEdge[2]* 0.001f
+            );
+
+            tracedf++;
+        }
+    }
+
+
+    #ifdef DEBUGGER
+    RCLCPP_WARN(
+        logger,
+        "traced: %f",
+        tracedf
+    );
+
+    RCLCPP_WARN(
+        logger,
+        "vectorOfTriangles: %zu",
+        vectorOfTriangles.size()
+    );
+    #endif
+
+
+    float coveragePercent =
+        100.0f *
+        tracedf /
+        static_cast<float>(
+            vectorOfTriangles.size()
+        );
+
+
+    // ============================================================
+    // PHYSICAL EXECUTION + PERFORMANCE MEASUREMENT
+    // ============================================================
+
+    bool executionSuccessful = false;
+    bool executionAttempted = false;
+
+    std::chrono::steady_clock::time_point
+        tracing_start;
+
+    std::chrono::steady_clock::time_point
+        tracing_end;
+
+
+    if(confirmPathExecution(
+            coveragePercent
+        ))
+    {
+        executionAttempted = true;
+
+
+        RCLCPP_WARN(
+            logger,
+            "execution start"
+        );
+
+
+        // --------------------------------------------------------
+        // Reset performance values immediately before actual robot
+        // motion begins.
+        // --------------------------------------------------------
+
+        trace_points.clear();
+
+        total_path_length = 0.0;
+
+
+        // Start actual physical performance measurement.
+
+        tracing_start =
+            std::chrono::steady_clock::now();
+
+        measuring.store(true);
+
+
+        // --------------------------------------------------------
+        // This executes the complete combined continuous trajectory.
+        // --------------------------------------------------------
+
+        executionSuccessful =
+            executePlannedPath(
+                orderedWaypoints
+            );
+
+
+        // Stop recording immediately after execution.
+
+        measuring.store(false);
+
+        tracing_end =
+            std::chrono::steady_clock::now();
+
+
+        if(executionSuccessful)
+        {
+            RCLCPP_WARN(
+                logger,
+                "Complete planned path executed successfully"
+            );
+        }
+        else
+        {
+            RCLCPP_ERROR(
+                logger,
+                "Planned path execution FAILED"
+            );
+        }
+    }
+    else
+    {
+        RCLCPP_WARN(
+            logger,
+            "path execution cancelled by user"
+        );
+    }
+
+
+    // ============================================================
+    // STOP PERFORMANCE SAMPLING
+    // ============================================================
+
+    measuring.store(false);
+
+    tcp_marker_timer->cancel();
+
+
+    // Allow an already-running timer callback to finish.
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(200)
+    );
+
+
+    // ============================================================
+    // PERFORMANCE TIMING
+    // ============================================================
+
+    double tracing_time = 0.0;
+
+
+    if(executionAttempted)
+    {
+        tracing_time =
+            std::chrono::duration<double>(
+                tracing_end -
+                tracing_start
+            ).count();
+    }
+
+
+    double average_tcp_speed = 0.0;
+
+
+    if(tracing_time > 0.0)
+    {
+        average_tcp_speed =
+            total_path_length /
+            tracing_time;
+    }
+
+
+    // ============================================================
+    // GEOMETRIC COVERAGE ANALYSIS
+    // ============================================================
+
+    constexpr double COVERAGE_RADIUS_M =
+        0.005;   // 5 mm
+
+    constexpr double INTERPOLATION_STEP_M =
+        0.002;   // 2 mm
+
+
+    RCLCPP_INFO(
+        logger,
+        "Starting geometric coverage analysis..."
+    );
+
+
+    CoverageResult coverage =
+        analyseCoverage(
+            trace_points,
+            performance_kdtree,
+            COVERAGE_RADIUS_M,
+            INTERPOLATION_STEP_M
+        );
+
+
+    // ============================================================
+    // RETURN HOME
+    // ============================================================
+
+    if(rclcpp::ok())
+    {
+        goHome();
+    }
+
+
+    // ============================================================
+    // SAVE TCP TRACE CSV
+    // ============================================================
+
+    std::ofstream trace_file(
+        "tcp_trace.csv"
+    );
+
+
+    if(trace_file.is_open())
+    {
+        trace_file <<
+            "x_m,y_m,z_m\n";
+
+
+        for(const auto& p :
+            trace_points)
+        {
+            trace_file
+                << p.x << ","
+                << p.y << ","
+                << p.z << "\n";
+        }
+
+
+        trace_file.close();
+    }
+    else
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Could not open tcp_trace.csv"
+        );
+    }
+
+
+    // ============================================================
+    // SAVE PERFORMANCE SUMMARY
+    // ============================================================
+
+    std::ofstream summary_file(
+        "performance_summary.csv"
+    );
+
+
+    if(summary_file.is_open())
+    {
+        summary_file <<
+            "metric,value\n";
+
+
+        summary_file
+            << "tcp_samples,"
+            << trace_points.size()
+            << "\n";
+
+
+        summary_file
+            << "path_length_m,"
+            << total_path_length
+            << "\n";
+
+
+        summary_file
+            << "tracing_time_s,"
+            << tracing_time
+            << "\n";
+
+
+        summary_file
+            << "average_speed_m_s,"
+            << average_tcp_speed
+            << "\n";
+
+
+        summary_file
+            << "covered_triangles,"
+            << coverage.covered_triangles
+            << "\n";
+
+
+        summary_file
+            << "total_triangles,"
+            << vectorOfTriangles.size()
+            << "\n";
+
+
+        summary_file
+            << "triangle_coverage_percent,"
+            << coverage.triangle_coverage_percent
+            << "\n";
+
+
+        summary_file
+            << "surface_coverage_percent,"
+            << coverage.area_coverage_percent
+            << "\n";
+
+
+        summary_file
+            << "covered_area_m2,"
+            << coverage.covered_area_m2
+            << "\n";
+
+
+        summary_file
+            << "total_area_m2,"
+            << coverage.total_area_m2
+            << "\n";
+
+
+        summary_file
+            << "average_stl_distance_mm,"
+            << coverage.average_nearest_distance_mm
+            << "\n";
+
+
+        summary_file
+            << "maximum_stl_distance_mm,"
+            << coverage.maximum_nearest_distance_mm
+            << "\n";
+
+
+        summary_file.close();
+    }
+    else
+    {
+        RCLCPP_ERROR(
+            logger,
+            "Could not open performance_summary.csv"
+        );
+    }
+
+
+    // ============================================================
+    // PRINT RESULTS
+    // ============================================================
+
+    RCLCPP_INFO(
+        logger,
+        "========== PERFORMANCE RESULTS =========="
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Execution successful: %s",
+        executionSuccessful ?
+            "YES" :
+            "NO"
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "TCP samples: %zu",
+        trace_points.size()
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Actual TCP distance: %.3f m",
+        total_path_length
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Tracing time: %.2f s",
+        tracing_time
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Average TCP speed: %.3f m/s",
+        average_tcp_speed
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Covered triangles: %zu / %zu",
+        coverage.covered_triangles,
+        vectorOfTriangles.size()
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Triangle coverage: %.2f %%",
+        coverage.triangle_coverage_percent
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Surface area coverage: %.2f %%",
+        coverage.area_coverage_percent
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Covered surface area: %.4f m^2 / %.4f m^2",
+        coverage.covered_area_m2,
+        coverage.total_area_m2
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Average TCP-to-STL distance: %.2f mm",
+        coverage.average_nearest_distance_mm
+    );
+
+
+    RCLCPP_INFO(
+        logger,
+        "Maximum TCP-to-STL distance: %.2f mm",
+        coverage.maximum_nearest_distance_mm
+    );
+
+
+    // ============================================================
+    // CLEAN SHUTDOWN
+    // ============================================================
+
+    gripper_group_interface.reset();
+
+
+    spinner->cancel();
+
+
+    if(spinner_thread.joinable())
+    {
+        spinner_thread.join();
+    }
+
+
+    // Destroy ROS entities before rclcpp::shutdown().
+
+    tcp_marker_timer.reset();
+    marker_pub.reset();
+
+    tf_listener.reset();
+    tf_buffer.reset();
+
+
+    spinner->remove_node(node);
+
+    node.reset();
+
+    spinner.reset();
+
+
+    if(rclcpp::ok())
+    {
+        rclcpp::shutdown();
+    }
+
 
     return 0;
-        
 }

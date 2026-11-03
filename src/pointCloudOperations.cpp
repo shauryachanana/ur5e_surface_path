@@ -15,4 +15,3 @@ void getClosestPoint(pcl::KdTreeFLANN<pcl::PointXYZ>& kdTree, std::vector<int>& 
     return;
 }
 #endif
-

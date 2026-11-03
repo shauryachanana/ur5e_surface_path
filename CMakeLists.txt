@@ -15,6 +15,8 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(geometric_shapes REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common kdtree)
 
 find_package(tf2_ros REQUIRED)
 
@@ -22,6 +24,7 @@ add_executable(hello_moveit src/hello_moveit.cpp)
 add_executable(
   trace_cube 
   src/trace_cube.cpp
+  src/stateMachineIKU/tracingStateMachine.cpp
   src/trianglesOperations.cpp
   src/pathPlanning.cpp
   src/pointCloudOperations.cpp
@@ -39,6 +42,7 @@ set(dependencies
   tf2_eigen
   tf2
   tf2_ros
+  visualization_msgs
 )
 
 ament_target_dependencies(hello_moveit ${dependencies})
@@ -51,6 +55,7 @@ target_link_libraries(trace_cube
 
 target_include_directories(trace_cube PUBLIC
   ${PCL_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 add_definitions(${PCL_DEFINITIONS})
