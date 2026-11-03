@@ -86,6 +86,7 @@ typedef struct tracingStateMachine_Vars
     bool diedAtTheBeginning;
     Pose target_pose; 
     Pose oldPose;
+    bool writeToFile;
     Triangle* currentTriangle;
     Triangle* previousTriangle;
     Triangle* triangleToMemorize;

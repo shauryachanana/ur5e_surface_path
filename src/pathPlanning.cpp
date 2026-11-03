@@ -5,6 +5,8 @@
 
 extern tracingStateMachine sm;
 
+extern std::ofstream visited;
+
 std::stack<Waypoint> pathHistory;
 std::stack<Waypoint> stackOfReachableWaypoints;
 extern std::vector<bool> traced;
@@ -210,6 +212,16 @@ bool moveToPoint(movementDirection movementDir, waypointType waypoint, const std
     target_poses.push_back(sm.vars.target_pose);
     double fraction = gripper_group_interface->computeCartesianPath(target_poses, 0.01, trajectory, true);
 
+    //only upd the file when we arrive to a triangle and move forward
+    //dont upd the file if we move with lift
+    if(movementDir == movementDirection::FORWARD && 
+        sm.vars.writeToFile && 
+        waypoint == waypointType::TRIANGLE)
+    {
+        bool done = fraction >= 1.0;
+        visited << sm.vars.currentTriangle->myIndex << "," << fraction << "," << (done ? 1 : 0) << "\n";
+        visited.flush();
+    }
     //Full Cartesian path achieved
     //a jump (via poses) has to be planned completely, a normal move needs 90 %
     if (fraction >= (viaPoses.empty() ? 0.9 : 0.99)) {

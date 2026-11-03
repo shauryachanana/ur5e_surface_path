@@ -263,7 +263,7 @@ attemptNextClosestState
 
 attemptNextClosestState : attemptNextClosestState
 
-attemptNextClosestState : enter / #123;  #125;
+attemptNextClosestState : enter / #123; writeToFile = true#59; #125;
 
 attemptNextClosestState : do / #123; attemptToReachNextClosest()#59; #125;
 
@@ -419,7 +419,7 @@ state jumpToBranchState {
 
                 moveWithLiftState : enter / #123; targetPose(currentTriangle)#59; #125;
 
-                moveWithLiftState : do / #123; opSuccess = \nmoveToPoint(\nmovementDirection#58#59;#58#59;FORWARD, \nwaypointType#58#59;#58#59;TRIANGLE,\n#123;liftedPose(previousTriangle), liftedPose(currentTriangle)#125;\n)#59; #125;
+                moveWithLiftState : do / #123; writeToFile = false#59; \nopSuccess = \nmoveToPoint(\nmovementDirection#58#59;#58#59;FORWARD, \nwaypointType#58#59;#58#59;TRIANGLE,\n#123;liftedPose(previousTriangle), liftedPose(currentTriangle)#125;\n)#59;\nwriteToFile = true#59; #125;
 
                 moveWithLiftState : exit / #123;  #125;
 
@@ -457,11 +457,11 @@ state jumpToBranchState {
 
                 targetPoseStraightLineState : targetPoseStraightLineState
 
-                targetPoseStraightLineState : enter / #123; targetPose(currentTriangle)#59; #125;
+                targetPoseStraightLineState : enter / #123; writeToFile = false#59;\ntargetPose(currentTriangle)#59; #125;
 
                 targetPoseStraightLineState : do / #123; opSuccess = moveToPoint(\nmovementDirection#58#59;#58#59;FORWARD\n)#59; #125;
 
-                targetPoseStraightLineState : exit / #123;  #125;
+                targetPoseStraightLineState : exit / #123; writeToFile = true#59; #125;
 
                 fallbackPrepState
 
@@ -1143,9 +1143,10 @@ evaluateGuard = null;
         } // end of behavior for attemptNextClosestState
         
         // attemptNextClosestState behavior
-        // uml: enter
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;"); }
         {
-            // Step 1: execute action ``
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;");
         } // end of behavior for attemptNextClosestState
     }
     
@@ -2138,10 +2139,10 @@ evaluateGuard = null;
     #MOVEWITHLIFTSTATE_do()
     {
         // moveWithLiftState behavior
-        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);"); }
+        // uml: do / { this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false; \nopSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);\nwriteToFile = true;"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false; \nopSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);\nwriteToFile = true;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false; \nopSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);\nwriteToFile = true;");
         } // end of behavior for moveWithLiftState
         
         // moveWithLiftState behavior
@@ -2197,19 +2198,20 @@ evaluateGuard = null;
         } // end of behavior for targetPoseStraightLineState
         
         // targetPoseStraightLineState behavior
-        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);"); }
+        // uml: enter / { this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false;\ntargetPose(currentTriangle);"); }
         {
-            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);");`
-            this.tracer?.log("⚡ FSM would execute action: " + "targetPose(currentTriangle);");
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false;\ntargetPose(currentTriangle);");`
+            this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = false;\ntargetPose(currentTriangle);");
         } // end of behavior for targetPoseStraightLineState
     }
     
     #TARGETPOSESTRAIGHTLINESTATE_exit()
     {
         // targetPoseStraightLineState behavior
-        // uml: exit
+        // uml: exit / { this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;"); }
         {
-            // Step 1: execute action ``
+            // Step 1: execute action `this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;");`
+            this.tracer?.log("⚡ FSM would execute action: " + "writeToFile = true;");
         } // end of behavior for targetPoseStraightLineState
         
         // targetPoseStraightLineState behavior

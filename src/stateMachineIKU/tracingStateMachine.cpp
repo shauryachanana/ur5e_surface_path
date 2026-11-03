@@ -591,9 +591,10 @@ static void ATTEMPTNEXTCLOSESTSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_ATTEMPTNEXTCLOSESTSTATE;
     
     // attemptNextClosestState behavior
-    // uml: enter
+    // uml: enter / { writeToFile = true; }
     {
-        // Step 1: execute action ``
+        // Step 1: execute action `writeToFile = true;`
+        sm->vars.writeToFile = true;
     } // end of behavior for attemptNextClosestState
 }
 
@@ -1383,15 +1384,17 @@ static void MOVEWITHLIFTSTATE_exit(tracingStateMachine* sm)
 static void MOVEWITHLIFTSTATE_do(tracingStateMachine* sm)
 {
     // moveWithLiftState behavior
-    // uml: do / { opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n); }
+    // uml: do / { writeToFile = false; \nopSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);\nwriteToFile = true; }
     {
-        // Step 1: execute action `opSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);`
+        // Step 1: execute action `writeToFile = false; \nopSuccess = \nmoveToPoint(\nmovementDirection::FORWARD, \nwaypointType::TRIANGLE,\n{liftedPose(previousTriangle), liftedPose(currentTriangle)}\n);\nwriteToFile = true;`
+        sm->vars.writeToFile = false; 
         sm->vars.opSuccess = 
         moveToPoint(
         movementDirection::FORWARD, 
         waypointType::TRIANGLE,
         {liftedPose(sm->vars.previousTriangle), liftedPose(sm->vars.currentTriangle)}
         );
+        sm->vars.writeToFile = true;
     } // end of behavior for moveWithLiftState
     
     // moveWithLiftState behavior
@@ -1438,9 +1441,10 @@ static void TARGETPOSESTRAIGHTLINESTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_TARGETPOSESTRAIGHTLINESTATE;
     
     // targetPoseStraightLineState behavior
-    // uml: enter / { targetPose(currentTriangle); }
+    // uml: enter / { writeToFile = false;\ntargetPose(currentTriangle); }
     {
-        // Step 1: execute action `targetPose(currentTriangle);`
+        // Step 1: execute action `writeToFile = false;\ntargetPose(currentTriangle);`
+        sm->vars.writeToFile = false;
         targetPose(sm->vars.currentTriangle);
     } // end of behavior for targetPoseStraightLineState
 }
@@ -1448,9 +1452,10 @@ static void TARGETPOSESTRAIGHTLINESTATE_enter(tracingStateMachine* sm)
 static void TARGETPOSESTRAIGHTLINESTATE_exit(tracingStateMachine* sm)
 {
     // targetPoseStraightLineState behavior
-    // uml: exit
+    // uml: exit / { writeToFile = true; }
     {
-        // Step 1: execute action ``
+        // Step 1: execute action `writeToFile = true;`
+        sm->vars.writeToFile = true;
     } // end of behavior for targetPoseStraightLineState
     
     sm->state_id = tracingStateMachine_StateId_JUMPTOTRIANGLESTATE;

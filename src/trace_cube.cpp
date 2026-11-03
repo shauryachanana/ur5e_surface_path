@@ -12,8 +12,6 @@
 #include <fstream>
 #include <thread>
 
-//TODO: remake everything for pointers
-
 // ================================================================
 // GLOBAL ROS / MOVEIT OBJECTS
 // ================================================================
@@ -36,6 +34,8 @@ int chosenVector = 0;
 std::vector<Triangle*> vectorOfTriangles;
 std::vector<Triangle*> singleNeighbourTrangles;
 std::vector<Triangle*> doubleNeighbourTriangles;
+
+std::ofstream visited("visited.csv");
 
 // ================================================================
 // MESH
@@ -351,6 +351,7 @@ CoverageResult analyseCoverage(
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
+    visited << "triangle_id,fraction,executed\n";
 
 
     // ============================================================

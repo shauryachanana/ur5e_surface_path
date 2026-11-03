@@ -39,6 +39,8 @@
 #define TEMPORARY
 #define MIN_DIST_TO_LIFT 5
 
+extern std::ofstream visited;
+
 struct Triangle;
 extern std::vector<Triangle*> vectorOfTriangles;
 
