@@ -956,10 +956,12 @@ static void GETCANDIDATESSTATE_enter(tracingStateMachine* sm)
     sm->state_id = tracingStateMachine_StateId_GETCANDIDATESSTATE;
     
     // getCandidatesState behavior
-    // uml: enter / { jumpFrom = previousTriangle; }
+    // uml: enter / { jumpFrom = previousTriangle;\ngetBranchCandidates();\ncandidateSize = candidates.size(); }
     {
-        // Step 1: execute action `jumpFrom = previousTriangle;`
+        // Step 1: execute action `jumpFrom = previousTriangle;\ngetBranchCandidates();\ncandidateSize = candidates.size();`
         sm->vars.jumpFrom = sm->vars.previousTriangle;
+        getBranchCandidates();
+        sm->vars.candidateSize = sm->vars.candidates.size();
     } // end of behavior for getCandidatesState
 }
 
@@ -978,15 +980,23 @@ static void GETCANDIDATESSTATE_exit(tracingStateMachine* sm)
 static void GETCANDIDATESSTATE_do(tracingStateMachine* sm)
 {
     // getCandidatesState behavior
-    // uml: do / { getBranchCandidates();\ncandidateSize = candidates.size(); }
+    // uml: 1. do [candidateSize == 0 || candidates[jumpIterator].pathDistance <= MIN_DIST_TO_LIFT] TransitionTo(backtrackState)
+    if (sm->vars.candidateSize == 0 || sm->vars.candidates[sm->vars.jumpIterator].pathDistance <= MIN_DIST_TO_LIFT)
     {
-        // Step 1: execute action `getBranchCandidates();\ncandidateSize = candidates.size();`
-        getBranchCandidates();
-        sm->vars.candidateSize = sm->vars.candidates.size();
+        // Step 1: Exit states until we reach `ROOT` state (Least Common Ancestor for transition).
+        exit_up_to_state_handler(sm, tracingStateMachine_StateId_ROOT);
+        
+        // Step 2: Transition action: ``.
+        
+        // Step 3: Enter/move towards transition target `backtrackState`.
+        BACKTRACKSTATE_enter(sm);
+        
+        // Step 4: complete transition. Ends event dispatch. No other behaviors are checked.
+        return;
     } // end of behavior for getCandidatesState
     
     // getCandidatesState behavior
-    // uml: do [jumpIterator < candidateSize] TransitionTo(triangSetupState)
+    // uml: 2. do [jumpIterator < candidateSize] TransitionTo(triangSetupState)
     if (sm->vars.jumpIterator < sm->vars.candidateSize)
     {
         // Step 1: Exit states until we reach `jumpToBranchState` state (Least Common Ancestor for transition).

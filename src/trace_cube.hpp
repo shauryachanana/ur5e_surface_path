@@ -37,6 +37,7 @@
 
 // #define DEBUGGER
 #define TEMPORARY
+#define MIN_DIST_TO_LIFT 5
 
 struct Triangle;
 extern std::vector<Triangle*> vectorOfTriangles;
