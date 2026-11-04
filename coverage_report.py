@@ -28,7 +28,7 @@ a = ap.parse_args()
 tris, sha = read_stl(a.stl)
 n = len(tris)
 head, rr = read_csv(a.reach)
-print("ASSUMPTIONS:", *head, "coverage_rule=visited triangle counts as fully covered (probe size not used)", sep="\n  ")
+print("ASSUMPTIONS:", *head, "coverage_rule=triangle counts as covered if fraction >= 0.9, same as the robot's move threshold (probe size not used)", sep="\n  ")
 if not head or f"sha256={sha}" not in head[0]:
     sys.exit("ERROR: STL hash differs from the one used for reachability. Rerun reachability.")
 if len(rr) != n:
@@ -39,8 +39,11 @@ for i, r in rr:
     reach[int(i)] = (r == '1')
 vis = np.zeros(n, bool)
 _, vv = read_csv(a.visited)
-for i, _, ex in vv:
-    if ex == '1':
+for r in vv:
+    if len(r) != 3:
+        continue
+    i, fr, ex = r
+    if float(fr) >= 0.9 and 0 <= int(i) < n:
         vis[int(i)] = True
 
 area = 0.5 * np.linalg.norm(np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0]), axis=1)
